@@ -71,4 +71,6 @@ On phones and tablets, on-screen touch controls appear after your first tap.
 Press `` ` `` during play to show hitboxes.
 
 ## Play online (GitHub Pages)
-The workflow in `.github/workflows/pages.yml` publishes the game to GitHub Pages on every push. To turn it on the first time, go to **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**. Then re-run the "Deploy to GitHub Pages" workflow from the Actions tab. The game will be live at `https://cyberdootclaude.github.io/ADHD-Fight-N8/`.
+The game is live at https://cyberdootclaude.github.io/ADHD-Fight-N8/.
+
+`.github/workflows/pages.yml` redeploys the site on every push to `main` or to a `claude/...` branch. Claude pushes its branch right before opening a pull request, so the live game updates as soon as a PR is opened: wait about a minute and refresh. Merging the PR into `main` keeps the site on that version.

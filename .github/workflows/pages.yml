@@ -1,8 +1,11 @@
 name: Deploy to GitHub Pages
 
+# Publishes the game whenever code is pushed to main or to a Claude branch
+# (Claude pushes its branch right before opening a pull request), so the live
+# page shows the newest version as soon as a PR is opened.
 on:
   push:
-    branches: [main, claude/zealous-noether-k1s1st]
+    branches: [main, 'claude/**']
   workflow_dispatch:
 
 permissions:
@@ -27,6 +30,9 @@ jobs:
         run: |
           mkdir -p _site
           cp -r index.html css js .nojekyll _site/
+          # Cache-bust scripts and styles so a normal refresh loads the new version
+          v="${GITHUB_SHA::8}"
+          sed -i -E "s#(src=\"js/[a-z]+\.js)\"#\1?v=$v\"#g; s#(href=\"css/style\.css)\"#\1?v=$v\"#g" _site/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
