@@ -56,7 +56,7 @@ class Fighter {
     this.animT = 0;
     this.walkPh = 0;
     this.cd = { N: 0, F: 0, U: 0, D: 0 };
-    this.status = { burn: 0, burnPow: 0, poison: 0, poisonPow: 0, slow: 0, freeze: 0, freezePersist: false, heal: 0, healPer: 0, armor: 0, speed: 0, power: 0 };
+    this.status = { burn: 0, burnPow: 0, poison: 0, poisonPow: 0, slow: 0, freeze: 0, freezePersist: false, heal: 0, healPer: 0, armor: 0, speed: 0, power: 0, flow: 0 };
   }
 
   spd() {
@@ -233,6 +233,10 @@ class Fighter {
       case 'block':
         this.timer--;
         this.vx *= 0.85;
+        if (inp.pressed('FL')) {
+          inp.consume('FL');
+          if (this.startFlow()) break;
+        }
         if (this.timer <= 0) this.state = 'idle';
         break;
       case 'stunned':
@@ -357,6 +361,10 @@ class Fighter {
       this.startSuper();
       return true;
     }
+    if (inp.pressed('FL')) {
+      inp.consume('FL');
+      if (this.startFlow()) return true;
+    }
     if (inp.pressed('S')) {
       const dx = inp.dirX();
       const v = inp.held.up ? 'U' : inp.held.down ? 'D' : dx !== 0 ? 'F' : 'N';
@@ -380,6 +388,20 @@ class Fighter {
       return true;
     }
     return false;
+  }
+
+  // Returns false (and flashes a warning) when there isn't enough meter.
+  startFlow() {
+    if (this.meter < FLOW_COST) {
+      this.g.text('NEED METER', this.x, this.y - 190, '#80d8ff', 0.8);
+      return false;
+    }
+    this.meter -= FLOW_COST;
+    this.startMove(FLOW_MOVE);
+    this.vx *= 0.3;
+    SFX.play('whoosh');
+    this.g.particle({ x: this.x, y: this.y - 75 * this.def.size, vx: 0, vy: 0, life: 14, size: 70, color: '#80d8ff', type: 'ring' });
+    return true;
   }
 
   startSuper() {
@@ -562,16 +584,28 @@ class Fighter {
       this.doCounter(att, hz);
       return 'countered';
     }
+    if (this.state === 'attack' && m && m.flow && this.mf > m.startup && this.mf <= m.startup + m.active && !hit.super) {
+      this.doFlow(att, hz);
+      return 'flowed';
+    }
     const s = this.status;
     const srcSide = U.sign(srcX - this.x) || -this.facing;
     const cx = this.x + srcSide * 22;
     const cy = this.y - 95 * this.def.size;
 
-    // blocking: hold away from the attack while grounded and not busy
-    if (CAN_BLOCK.has(this.state) && this.onGround && this.input.dirX() === -srcSide && !hit.unblockable && s.freeze <= 0) {
+    // blocking: hold away from the attack while grounded and not busy.
+    // Lows must be blocked crouching (down-back), overheads (attacks from
+    // the air) standing (back); mids can be blocked either way.
+    const holdingBack = CAN_BLOCK.has(this.state) && this.onGround && this.input.dirX() === -srcSide && !hit.unblockable && s.freeze <= 0;
+    const low = hz ? !!(hz.ground || hz.groundOnly) : !!(att.move && att.move.low);
+    const overhead = !hz && !att.onGround;
+    const crouching = !!this.input.held.down;
+    const wrongHeight = holdingBack && ((low && !crouching) || (overhead && crouching));
+    if (holdingBack && !wrongHeight) {
       const dmg = hit.dmg * att.pow();
       const chip = hit.special ? Math.round(dmg * 0.12) : 0;
       this.hp = Math.max(1, this.hp - chip);
+      this.lastDmg = chip;
       this.guard -= dmg * 0.45 + (hit.super ? 25 : 0);
       this.guardRegenDelay = 70;
       this.state = 'block';
@@ -603,6 +637,7 @@ class Fighter {
     if (this.isArmored() && !hit.super) {
       dmg = Math.round(dmg * 0.6);
       this.hp = Math.max(this.hp - dmg, 1);
+      this.lastDmg = dmg;
       this.flash = 8;
       const hs = Math.round((hit.hitstop ?? 7) * 0.8);
       this.hitstop = hs;
@@ -617,7 +652,12 @@ class Fighter {
     this.combo = continuing ? this.combo + 1 : 1;
     if (!continuing) this.comboDmg = 0;
     const scale = Math.max(0.3, 1 - 0.085 * (this.combo - 1));
-    const counterHit = this.state === 'attack' && m && this.mf <= m.startup;
+    // counter hit: hit during an attack's startup, during a whiffed Flow's
+    // recovery, or by a fighter whose Flow just succeeded
+    const flowPunish = this.state === 'attack' && m && m.flow && this.mf > m.startup + m.active;
+    const flowCounter = att.status.flow > 0;
+    if (flowCounter) att.status.flow = 0;
+    const counterHit = (this.state === 'attack' && m && this.mf <= m.startup) || flowPunish || flowCounter;
     dmg *= scale * (counterHit ? 1.2 : 1);
     if (s.freeze > 0 && !s.freezePersist) {
       s.freeze = 0;
@@ -626,6 +666,7 @@ class Fighter {
     }
     dmg = Math.max(1, Math.round(dmg));
     this.hp -= dmg;
+    this.lastDmg = dmg;
     this.comboDmg += dmg;
     this.comboShow = 90;
     if (!hit.super) att.meter = Math.min(100, att.meter + dmg * 0.45);
@@ -660,7 +701,10 @@ class Fighter {
     this.flash = 5;
 
     if (hit.effect) this.applyEffect(hit.effect);
-    if (counterHit) g.text('COUNTER!', this.x, this.y - 200, '#ff5252', 1);
+    if (wrongHeight) g.text(low ? 'LOW!' : 'OVERHEAD!', this.x, this.y - 230, '#ffab40', 1);
+    if (flowCounter) g.text('FLOW COUNTER!', this.x, this.y - 200, '#80d8ff', 1.1);
+    else if (flowPunish) g.text('PUNISH!', this.x, this.y - 200, '#ff5252', 1);
+    else if (counterHit) g.text('COUNTER!', this.x, this.y - 200, '#ff5252', 1);
 
     const big = dmg >= 55 || hit.super;
     SFX.play(big ? 'hitH' : 'hitL');
@@ -733,7 +777,30 @@ class Fighter {
       if (alive) this.hp = Math.min(this.maxHp, this.hp + s.healPer);
       if (s.heal % 6 === 0) g.particle({ x: this.x + U.rand(-30, 30), y: this.y - U.rand(0, 140), vx: 0, vy: -2, life: 24, size: 5, color: '#69f0ae', type: 'plus' });
     }
-    for (const k of ['armor', 'speed', 'power']) if (s[k] > 0) s[k]--;
+    for (const k of ['armor', 'speed', 'power', 'flow']) if (s[k] > 0) s[k]--;
+  }
+
+  // A hit landed during Flow Stance: slip past it and punish.
+  doFlow(att, hz) {
+    const g = this.g;
+    SFX.play('counter');
+    g.text('FLOW!', this.x, this.y - 200, '#80d8ff', 1.2);
+    g.flash = 5;
+    g.flashColor = '#b3e5fc';
+    this.meter = Math.min(100, this.meter + FLOW_REFUND);
+    this.inv = 16;
+    this.status.flow = 90;
+    this.afterimage('#80d8ff');
+    if (hz) {
+      if (!hz.follow && !hz.trap) hz.dead = true;
+    } else {
+      att.hitstop = Math.max(att.hitstop, 18);
+      this.x = U.clamp(this.x - this.facing * 34, g.stage.left, g.stage.right);
+    }
+    g.particle({ x: this.x, y: this.y - 75 * this.def.size, vx: 0, vy: 0, life: 16, size: 90, color: '#80d8ff', type: 'ring' });
+    fxBurst(g, this.x, this.y - 80, '#b3e5fc', 16, 8);
+    this.move = null;
+    this.state = this.onGround ? 'idle' : 'air';
   }
 
   doCounter(att, hz) {

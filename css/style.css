@@ -50,4 +50,5 @@ body {
 #touch .s { right: 14px; bottom: 150px; }
 #touch .d { right: 14px; bottom: 30px; font-size: 11px; }
 #touch .su { right: 150px; bottom: 110px; font-size: 11px; background: rgba(255, 145, 0, 0.25); }
+#touch .fl { right: 80px; bottom: 170px; font-size: 11px; background: rgba(128, 216, 255, 0.25); }
 #touch .pause { top: 10px; left: 50%; transform: translateX(-50%); width: 44px; height: 44px; }

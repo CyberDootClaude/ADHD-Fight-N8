@@ -4,7 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>ADHD Fight N8</title>
-  <link rel="stylesheet" href="css/style.css">
+  <script>
+    // Load the game files with a fresh query string on every page load, so a
+    // normal refresh always picks up the newest version after a deploy.
+    var BUILD = Date.now();
+    document.write('<link rel="stylesheet" href="css/style.css?v=' + BUILD + '">');
+  </script>
 </head>
 <body>
   <canvas id="game" width="1280" height="720"></canvas>
@@ -26,20 +31,15 @@
       <div data-k="S" class="b s">SP</div>
       <div data-k="D" class="b d">DASH</div>
       <div data-k="SU" class="b su">SUPER</div>
+      <div data-k="FL" class="b fl">FLOW</div>
     </div>
     <div data-k="start" class="b pause">❚❚</div>
   </div>
 
-  <script src="js/util.js"></script>
-  <script src="js/audio.js"></script>
-  <script src="js/input.js"></script>
-  <script src="js/moves.js"></script>
-  <script src="js/entities.js"></script>
-  <script src="js/characters.js"></script>
-  <script src="js/fighter.js"></script>
-  <script src="js/render.js"></script>
-  <script src="js/ai.js"></script>
-  <script src="js/match.js"></script>
-  <script src="js/game.js"></script>
+  <script>
+    ['util', 'audio', 'input', 'moves', 'entities', 'characters', 'fighter', 'render', 'ai', 'match', 'game'].forEach(function (f) {
+      document.write('<script src="js/' + f + '.js?v=' + BUILD + '"><\/script>');
+    });
+  </script>
 </body>
 </html>

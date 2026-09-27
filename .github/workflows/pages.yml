@@ -1,8 +1,11 @@
 name: Deploy to GitHub Pages
 
+# Publishes the game whenever code is pushed to main or to a Claude branch
+# (Claude pushes its branch right before opening a pull request), so the live
+# page shows the newest version as soon as a PR is opened.
 on:
   push:
-    branches: [main, claude/zealous-noether-k1s1st]
+    branches: [main, 'claude/**']
   workflow_dispatch:
 
 permissions:

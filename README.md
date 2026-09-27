@@ -11,9 +11,35 @@ npx http-server .   # then open http://localhost:8080
 ## Modes
 - **VS CPU** — you against the CPU (Easy / Normal / Hard)
 - **2 Players** — local versus on one keyboard, or with gamepads
-- **Training** — a dummy that refills its health, and you always have full super meter
+- **Practice** — beat up a bot with full control over it (see below)
 - **CPU vs CPU** — watch the AI fight
-- **Settings** — game speed (**Fast** / **Turbo** / **Hyper**), CPU level, rounds to win, sound
+- **Settings** — game speed (**Fast** / **Turbo** / **Hyper**), CPU level, rounds to win, sound, and **Controls** for remapping keys
+
+## Practice mode
+Modeled on the training modes in Street Fighter 6 and Tekken 8. Nobody can be knocked out. Open the practice menu with **Esc**.
+
+| Setting | Options |
+|---|---|
+| Dummy action | Stand, Crouch, Jump, Walk forward, or fight back as CPU Easy / Normal / Hard |
+| Dummy guard | None, All, After first hit (blocks once your combo drops, which shows whether your combo was real), Random |
+| Counterattack | What the dummy does the moment it can act after blocking, getting hit or getting up: Light, Heavy, Special, Up special, Flow, Back dash, Jump |
+| Health | Auto refill after each combo, or no refill |
+| Super meter | Always full, or normal |
+| Special cooldowns | Off or normal |
+| Start position | Center, left corner or right corner |
+| Hitboxes / Input history / Attack data | On or off |
+
+- **Attack data** shows your last attack's name, whether it hit or was blocked, damage, combo hits and damage, best combo, and **frame advantage**: how many frames sooner (+) or later (−) than the dummy you can act again.
+- **Input history** lists your recent inputs, with how many frames each was held.
+- Press **R** (remappable) to reset positions instantly.
+
+## Remapping controls
+Go to **Settings → Controls**, or **Controls** in the pause menu:
+- Pick an action and a player, press **F / Enter**, then press the new key.
+- If that key was already used for another action, it's moved to the new one.
+- **Reset to defaults** restores the original layout.
+
+Bindings are saved in your browser. The arrow keys, Enter and Esc always work in menus, so you can't lock yourself out.
 
 ## Controls
 
@@ -23,9 +49,11 @@ npx http-server .   # then open http://localhost:8080
 | Light | F | `,` or Num1 | X |
 | Heavy | G | `.` or Num2 | Y |
 | Special | H | `/` or Num3 | B |
-| Dash | Space | Right Shift or Num0 | LB / RB |
+| Flow | Y | `'` or Num6 | RB |
+| Dash | Space | Right Shift or Num0 | LB |
 | Super | T | `;` or Num4 | LT / RT |
 | Pause | Esc / Enter | Backspace | Start |
+| Reset position (practice) | R | Num5 | — |
 
 On phones and tablets, on-screen touch controls appear after your first tap.
 
@@ -35,7 +63,16 @@ On phones and tablets, on-screen touch controls appear after your first tap.
 - **Chains & cancels**: press Light three times for a combo. Any attack that connects can cancel into Heavy, Special, Super, Jump or Dash.
 - **Heavy variants**: ↑ + Heavy is a launcher (then jump to chase), ↓ + Heavy is a sweep, and Heavy in the air is a spike.
 - **Movement**: double-tap a direction or press Dash to dash. Hold Dash to keep running. You can also air-dash, double jump, and fast-fall by holding ↓.
-- **Defense**: hold away from your opponent to block. Blocking too much breaks your guard and leaves you stunned.
+- **Blocking**: there's no block button. Hold away from your opponent (back) to block, for free.
+  - **High and mid attacks**: block standing (back). Crouch-blocking (down-back) also stops mids.
+  - **Low attacks**: must be blocked crouching (down-back). Lows are the crouching jab, the sweep, slides, ground-traveling spikes and waves, and ground shockwaves.
+  - **Overheads**: attacks from a jumping opponent must be blocked standing.
+  - Blocking the wrong height shows **LOW!** or **OVERHEAD!**. Blocking too much breaks your guard and leaves you stunned.
+- **Flow**: a separate button, and a higher-risk, higher-reward option than blocking.
+  - Press it alone to enter **Flow Stance**, for 1/4 of the super meter. It also works out of blockstun.
+  - Anything that hits you during the stance (except supers) is automatically evaded, or absorbed if it's a projectile.
+  - A successful Flow staggers the attacker, refunds some meter, and makes your next hit a **Flow Counter** (counter-hit damage and stun).
+  - If nothing hits you, Flow has a recovery where any hit on you is a **punish** counter-hit.
 - **Status effects**: burn, poison, slow, freeze, shock.
 
 ## Roster
@@ -71,4 +108,6 @@ On phones and tablets, on-screen touch controls appear after your first tap.
 Press `` ` `` during play to show hitboxes.
 
 ## Play online (GitHub Pages)
-The workflow in `.github/workflows/pages.yml` publishes the game to GitHub Pages on every push. To turn it on the first time, go to **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**. Then re-run the "Deploy to GitHub Pages" workflow from the Actions tab. The game will be live at `https://cyberdootclaude.github.io/ADHD-Fight-N8/`.
+The game is live at https://cyberdootclaude.github.io/ADHD-Fight-N8/.
+
+`.github/workflows/pages.yml` redeploys the site on every push to `main` or to a `claude/...` branch. Claude pushes its branch right before opening a pull request, so the live game updates as soon as a PR is opened: wait about a minute and refresh. `index.html` loads the game files with a fresh version tag on every page load, so a normal refresh always gets the newest version.
