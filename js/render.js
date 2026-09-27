@@ -428,8 +428,21 @@ function drawFighter(ctx, f, t) {
     ctx.globalAlpha = 0.15;
   }
   // buff auras
-  if (s.armor > 0 || s.speed > 0 || s.power > 0 || f.state === 'attack' && f.move && f.move.type === 'super') {
-    const c = s.armor > 0 ? '#cfd8dc' : s.speed > 0 ? '#ffcc80' : s.power > 0 ? '#fff59d' : f.def.color;
+  const flowing = f.state === 'attack' && f.move && f.move.flow;
+  if (flowing) {
+    // Flow Stance: a pulsing ring while the evade window is open, dim during recovery
+    const m = f.move;
+    const open = f.mf > m.startup && f.mf <= m.startup + m.active;
+    ctx.save();
+    ctx.strokeStyle = open ? 'rgba(128,216,255,0.9)' : 'rgba(128,216,255,0.3)';
+    ctx.lineWidth = open ? 4 : 2;
+    ctx.beginPath();
+    ctx.ellipse(f.x, f.y - 75 * f.def.size, 62 + Math.sin(t * 0.6) * 4, 95, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  if (s.armor > 0 || s.speed > 0 || s.power > 0 || s.flow > 0 || f.state === 'attack' && f.move && f.move.type === 'super') {
+    const c = s.flow > 0 ? '#80d8ff' : s.armor > 0 ? '#cfd8dc' : s.speed > 0 ? '#ffcc80' : s.power > 0 ? '#fff59d' : f.def.color;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     const gr = ctx.createRadialGradient(f.x, f.y - 75, 10, f.x, f.y - 75, 110 * f.def.size);

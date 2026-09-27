@@ -201,7 +201,7 @@ class Match {
     if (!this.practice || att !== this.f[0]) return;
     const i = this.info;
     i.move = name;
-    i.result = res === 'hit' ? 'HIT' : res === 'block' ? 'BLOCKED' : res === 'armor' ? 'ARMORED' : 'PARRIED';
+    i.result = { hit: 'HIT', block: 'BLOCKED', armor: 'ARMORED', flowed: 'FLOWED' }[res] || 'PARRIED';
     i.damage = res === 'hit' || res === 'block' || res === 'armor' ? def.lastDmg || 0 : 0;
     if (res === 'hit') {
       i.combo = def.combo;
@@ -228,6 +228,7 @@ class Match {
       }
     }
     if (p.meter === 0) pl.meter = 100;
+    if (DUMMY_REVERSALS[p.reversal] === 'FLOW') dummy.meter = 100;
     if (p.cooldowns === 0) for (const f of this.f) for (const k in f.cd) f.cd[k] = 0;
     if (this.inputs[0].edge.reset) this.resetPositions();
 
@@ -244,7 +245,6 @@ class Match {
         this.adv = null;
       } else if (tr.t > 240) this.adv = null;
     }
-    void dummy;
     this.recordInput();
   }
 
@@ -256,7 +256,7 @@ class Match {
     const up = h.up || h.jump;
     const dn = h.down;
     const dir = up ? (fw ? '↗' : bk ? '↖' : '↑') : dn ? (fw ? '↘' : bk ? '↙' : '↓') : fw ? '→' : bk ? '←' : '';
-    const btns = [['L', 'L'], ['H', 'H'], ['S', 'SP'], ['D', 'DASH'], ['SU', 'SUPER']].filter(([k]) => h[k]).map(([, l]) => l);
+    const btns = [['L', 'L'], ['H', 'H'], ['S', 'SP'], ['FL', 'FLOW'], ['D', 'DASH'], ['SU', 'SUPER']].filter(([k]) => h[k]).map(([, l]) => l);
     const key = `${dir}|${btns.join(' ')}`;
     const top = this.history[0];
     if (top && top.key === key) {
@@ -365,7 +365,7 @@ class Match {
     const res = b.takeHit(mv.hit, a, a.x, a.facing, null);
     if (res === 'none') return;
     this.noteHit(a, b, res, moveName(mv), true);
-    if (res === 'block' || res === 'countered') a.moveBlocked = true;
+    if (res === 'block' || res === 'countered' || res === 'flowed') a.moveBlocked = true;
     else a.moveHit = true;
     a.lastHitMf = a.mf;
   }
@@ -633,6 +633,9 @@ function drawHUD(ctx, m) {
     const mp = f.meter / 100;
     if (left) ctx.fillRect(mx, my, MW * mp, 16);
     else ctx.fillRect(mx + MW * (1 - mp), my, MW * mp, 16);
+    // quarter-bar ticks: one Flow costs one quarter
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    for (let q = 1; q < 4; q++) ctx.fillRect(mx + (MW * q) / 4 - 1, my, 2, 16);
     ctx.font = "900 16px Impact, 'Arial Black', sans-serif";
     ctx.textAlign = left ? 'left' : 'right';
     ctx.fillStyle = full ? '#ffea00' : '#ffffff';

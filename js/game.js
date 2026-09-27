@@ -680,13 +680,14 @@ const Game = {
       ['Light attack', k(0, 'L'), k(1, 'L'), 'X / □'],
       ['Heavy attack', k(0, 'H'), k(1, 'H'), 'Y / △'],
       ['Special', k(0, 'S'), k(1, 'S'), 'B / ○'],
-      ['Dash', k(0, 'D'), k(1, 'D'), 'LB / RB'],
+      ['Flow stance', k(0, 'FL'), k(1, 'FL'), 'RB / R1'],
+      ['Dash', k(0, 'D'), k(1, 'D'), 'LB / L1'],
       ['Super (full meter)', k(0, 'SU'), k(1, 'SU'), 'LT / RT'],
       ['Pause', `Esc / ${k(0, 'start')}`, `BKSP / ${k(1, 'start')}`, 'Start'],
     ];
     const cx = [150, 470, 720, 990];
     rows.forEach((r, i) => {
-      const y = 150 + i * 36;
+      const y = 140 + i * 34;
       r.forEach((c, j) => txt(ctx, c, cx[j], y, i === 0 ? 22 : 20, i === 0 ? '#80d8ff' : j === 0 ? '#ffd600' : '#fff', j === 0 ? 'left' : 'center', 3, 700, 'sans-serif'));
     });
     const tips = [
@@ -694,10 +695,12 @@ const Game = {
       'Heavy + ↑ = launcher (then jump to chase), Heavy + ↓ = sweep, Heavy in the air = spike.',
       'Light attacks chain: tap Light 3 times. Cancel any hit into Heavy, Special, Super, Jump or Dash.',
       'Double-tap a direction (or press Dash) to dash. Hold Dash to keep running. Dash works in the air too.',
-      'Hold AWAY from your opponent to block. Blocking too much shatters your guard!',
-      'Build meter by fighting, then unleash your SUPER when the bar flashes.',
+      'BLOCK by holding AWAY (back). LOWS (sweeps, slides, ground waves) need DOWN-BACK. Jump-in attacks need a standing block.',
+      'FLOW: press Flow for Flow Stance (1/4 meter). Anything that hits you in it is evaded, and your next hit is a Flow Counter.',
+      'A whiffed Flow has a punishable recovery. Holding back is free and safe; Flow is the high-risk, high-reward option.',
+      'Blocking too much shatters your guard! Build meter by fighting, then unleash your SUPER when the bar flashes.',
     ];
-    tips.forEach((l, i) => txt(ctx, l, VIEW_W / 2, 470 + i * 34, 19, '#fff', 'center', 3, 700, 'sans-serif'));
+    tips.forEach((l, i) => txt(ctx, l, VIEW_W / 2, 468 + i * 29, 16, i >= 4 && i <= 6 ? '#b3e5fc' : '#fff', 'center', 3, 700, 'sans-serif'));
     txt(ctx, 'Change keys in Settings → Controls   •   Press any button to go back', VIEW_W / 2, VIEW_H - 18, 18, '#aaa', 'center', 3, 700, 'sans-serif');
   },
 
@@ -866,11 +869,12 @@ const Game = {
       const rows = [
         ['Special', sp.N.name], ['→ + Special', sp.F.name], ['↑ + Special', sp.U.name], ['↓ + Special', sp.D.name],
         ['Super (full bar)', d.super.name], ['Light ×3', 'Punch, punch, kick chain'], ['↑ + Heavy', 'Launcher'],
-        ['↓ + Heavy', 'Sweep (knockdown)'], ['Air Heavy', 'Spike'], ['↓ + Light', 'Low jab'],
+        ['↓ + Heavy', 'Sweep (low, knockdown)'], ['Air Heavy', 'Spike (overhead)'], ['↓ + Light', 'Low jab (low)'],
+        ['Flow', 'Evade stance (1/4 meter)'], ['Hold back', 'Block (↓+back for lows)'],
       ];
       rows.forEach(([k, v], i) => {
-        txt(ctx, k, x, 180 + i * 38, 20, '#80d8ff', 'left', 3, 700, 'sans-serif');
-        txt(ctx, v, x + 190, 180 + i * 38, 20, i === 4 ? '#ffd600' : '#fff', 'left', 3, 700, 'sans-serif');
+        txt(ctx, k, x, 176 + i * 33, 19, '#80d8ff', 'left', 3, 700, 'sans-serif');
+        txt(ctx, v, x + 190, 176 + i * 33, 19, i === 4 ? '#ffd600' : '#fff', 'left', 3, 700, 'sans-serif');
       });
       this.wrap(ctx, d.blurb, x, 580, 460, 17, '#b3e5fc');
     });

@@ -22,7 +22,7 @@ Modeled on the training modes in Street Fighter 6 and Tekken 8. Nobody can be kn
 |---|---|
 | Dummy action | Stand, Crouch, Jump, Walk forward, or fight back as CPU Easy / Normal / Hard |
 | Dummy guard | None, All, After first hit (blocks once your combo drops, which shows whether your combo was real), Random |
-| Counterattack | What the dummy does the moment it can act after blocking, getting hit or getting up: Light, Heavy, Special, Up special, Back dash, Jump |
+| Counterattack | What the dummy does the moment it can act after blocking, getting hit or getting up: Light, Heavy, Special, Up special, Flow, Back dash, Jump |
 | Health | Auto refill after each combo, or no refill |
 | Super meter | Always full, or normal |
 | Special cooldowns | Off or normal |
@@ -49,7 +49,8 @@ Bindings are saved in your browser. The arrow keys, Enter and Esc always work in
 | Light | F | `,` or Num1 | X |
 | Heavy | G | `.` or Num2 | Y |
 | Special | H | `/` or Num3 | B |
-| Dash | Space | Right Shift or Num0 | LB / RB |
+| Flow | Y | `'` or Num6 | RB |
+| Dash | Space | Right Shift or Num0 | LB |
 | Super | T | `;` or Num4 | LT / RT |
 | Pause | Esc / Enter | Backspace | Start |
 | Reset position (practice) | R | Num5 | — |
@@ -62,7 +63,16 @@ On phones and tablets, on-screen touch controls appear after your first tap.
 - **Chains & cancels**: press Light three times for a combo. Any attack that connects can cancel into Heavy, Special, Super, Jump or Dash.
 - **Heavy variants**: ↑ + Heavy is a launcher (then jump to chase), ↓ + Heavy is a sweep, and Heavy in the air is a spike.
 - **Movement**: double-tap a direction or press Dash to dash. Hold Dash to keep running. You can also air-dash, double jump, and fast-fall by holding ↓.
-- **Defense**: hold away from your opponent to block. Blocking too much breaks your guard and leaves you stunned.
+- **Blocking**: there's no block button. Hold away from your opponent (back) to block, for free.
+  - **High and mid attacks**: block standing (back). Crouch-blocking (down-back) also stops mids.
+  - **Low attacks**: must be blocked crouching (down-back). Lows are the crouching jab, the sweep, slides, ground-traveling spikes and waves, and ground shockwaves.
+  - **Overheads**: attacks from a jumping opponent must be blocked standing.
+  - Blocking the wrong height shows **LOW!** or **OVERHEAD!**. Blocking too much breaks your guard and leaves you stunned.
+- **Flow**: a separate button, and a higher-risk, higher-reward option than blocking.
+  - Press it alone to enter **Flow Stance**, for 1/4 of the super meter. It also works out of blockstun.
+  - Anything that hits you during the stance (except supers) is automatically evaded, or absorbed if it's a projectile.
+  - A successful Flow staggers the attacker, refunds some meter, and makes your next hit a **Flow Counter** (counter-hit damage and stun).
+  - If nothing hits you, Flow has a recovery where any hit on you is a **punish** counter-hit.
 - **Status effects**: burn, poison, slow, freeze, shock.
 
 ## Roster

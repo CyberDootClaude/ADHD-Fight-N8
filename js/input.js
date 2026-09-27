@@ -1,17 +1,17 @@
 // Keyboard, gamepad and touch input -> per-player logical buttons.
-const BUTTONS = ['left', 'right', 'up', 'down', 'L', 'H', 'S', 'D', 'SU', 'jump', 'start', 'esc', 'reset'];
+const BUTTONS = ['left', 'right', 'up', 'down', 'L', 'H', 'S', 'D', 'SU', 'FL', 'jump', 'start', 'esc', 'reset'];
 const BUFFER_FRAMES = 10;
 
 const DEFAULT_KEYMAP = [
   {
     left: ['KeyA'], right: ['KeyD'], up: ['KeyW'], down: ['KeyS'],
-    L: ['KeyF'], H: ['KeyG'], S: ['KeyH'], D: ['Space'], SU: ['KeyT'],
+    L: ['KeyF'], H: ['KeyG'], S: ['KeyH'], D: ['Space'], SU: ['KeyT'], FL: ['KeyY'],
     jump: [], start: ['Enter', 'KeyP'], esc: ['Escape'], reset: ['KeyR'],
   },
   {
     left: ['ArrowLeft'], right: ['ArrowRight'], up: ['ArrowUp'], down: ['ArrowDown'],
     L: ['Comma', 'Numpad1'], H: ['Period', 'Numpad2'], S: ['Slash', 'Numpad3'],
-    D: ['ShiftRight', 'Numpad0'], SU: ['Semicolon', 'Numpad4'],
+    D: ['ShiftRight', 'Numpad0'], SU: ['Semicolon', 'Numpad4'], FL: ['Quote', 'Numpad6'],
     jump: [], start: ['NumpadEnter'], esc: ['Backspace'], reset: ['Numpad5'],
   },
 ];
@@ -20,7 +20,7 @@ const DEFAULT_KEYMAP = [
 // always a way back out of menus.
 const REMAPPABLE = [
   ['up', 'UP / JUMP'], ['down', 'DOWN / CROUCH'], ['left', 'LEFT'], ['right', 'RIGHT'],
-  ['L', 'LIGHT'], ['H', 'HEAVY'], ['S', 'SPECIAL'], ['D', 'DASH'], ['SU', 'SUPER'],
+  ['L', 'LIGHT'], ['H', 'HEAVY'], ['S', 'SPECIAL'], ['FL', 'FLOW'], ['D', 'DASH'], ['SU', 'SUPER'],
   ['jump', 'JUMP (extra key)'], ['start', 'PAUSE'], ['reset', 'RESET POSITION'],
 ];
 // Keys that can never be bound: Escape backs out of menus, ` toggles hitboxes.
@@ -178,7 +178,8 @@ function readGamepad(index) {
   r.L = b(2);
   r.H = b(3);
   r.S = b(1);
-  r.D = b(4) || b(5);
+  r.D = b(4);
+  r.FL = b(5);
   r.SU = b(6) || b(7);
   r.start = b(9);
   r.esc = b(8);

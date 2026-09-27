@@ -52,6 +52,7 @@ const POSES = {
   kickRush: P(-20, [50, 80], [-40, 40], [95, 0], [-20, -40]),
   counter: P(-8, [110, 60], [80, 80], [20, -10], [-25, -8]),
   superW: P(-15, [160, 10], [150, 10], [30, -10], [-30, -8]),
+  flow: P(-6, [95, 70], [55, 95], [38, -30], [-35, -22]),
 };
 
 function mk(o) {
@@ -117,6 +118,15 @@ const NORMALS = {
     pose: { wind: POSES.airHeavyW, strike: POSES.airHeavy },
   }),
 };
+
+// Flow Stance: a separate button that auto-evades (or absorbs) whatever hits
+// during its window. Costs meter; whiffing it leaves a punishable recovery.
+const FLOW_COST = 25;
+const FLOW_REFUND = 15;
+const FLOW_MOVE = mk({
+  id: 'FLOW', type: 'flow', name: 'Flow Stance', startup: 2, active: 22, recovery: 18, flow: true,
+  pose: { wind: POSES.flow, strike: POSES.flow },
+});
 
 // ---------------------------------------------------------------- helpers
 const HIT = (o) => Object.assign({ dmg: 50, stun: 20, kb: [6, -2], hitstop: 7 }, o);
