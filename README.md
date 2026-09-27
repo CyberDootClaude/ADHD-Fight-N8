@@ -11,9 +11,35 @@ npx http-server .   # then open http://localhost:8080
 ## Modes
 - **VS CPU** — you against the CPU (Easy / Normal / Hard)
 - **2 Players** — local versus on one keyboard, or with gamepads
-- **Training** — a dummy that refills its health, and you always have full super meter
+- **Practice** — beat up a bot with full control over it (see below)
 - **CPU vs CPU** — watch the AI fight
-- **Settings** — game speed (**Fast** / **Turbo** / **Hyper**), CPU level, rounds to win, sound
+- **Settings** — game speed (**Fast** / **Turbo** / **Hyper**), CPU level, rounds to win, sound, and **Controls** for remapping keys
+
+## Practice mode
+Modeled on the training modes in Street Fighter 6 and Tekken 8. Nobody can be knocked out. Open the practice menu with **Esc**.
+
+| Setting | Options |
+|---|---|
+| Dummy action | Stand, Crouch, Jump, Walk forward, or fight back as CPU Easy / Normal / Hard |
+| Dummy guard | None, All, After first hit (blocks once your combo drops, which shows whether your combo was real), Random |
+| Counterattack | What the dummy does the moment it can act after blocking, getting hit or getting up: Light, Heavy, Special, Up special, Back dash, Jump |
+| Health | Auto refill after each combo, or no refill |
+| Super meter | Always full, or normal |
+| Special cooldowns | Off or normal |
+| Start position | Center, left corner or right corner |
+| Hitboxes / Input history / Attack data | On or off |
+
+- **Attack data** shows your last attack's name, whether it hit or was blocked, damage, combo hits and damage, best combo, and **frame advantage**: how many frames sooner (+) or later (−) than the dummy you can act again.
+- **Input history** lists your recent inputs, with how many frames each was held.
+- Press **R** (remappable) to reset positions instantly.
+
+## Remapping controls
+Go to **Settings → Controls**, or **Controls** in the pause menu:
+- Pick an action and a player, press **F / Enter**, then press the new key.
+- If that key was already used for another action, it's moved to the new one.
+- **Reset to defaults** restores the original layout.
+
+Bindings are saved in your browser. The arrow keys, Enter and Esc always work in menus, so you can't lock yourself out.
 
 ## Controls
 
@@ -26,6 +52,7 @@ npx http-server .   # then open http://localhost:8080
 | Dash | Space | Right Shift or Num0 | LB / RB |
 | Super | T | `;` or Num4 | LT / RT |
 | Pause | Esc / Enter | Backspace | Start |
+| Reset position (practice) | R | Num5 | — |
 
 On phones and tablets, on-screen touch controls appear after your first tap.
 

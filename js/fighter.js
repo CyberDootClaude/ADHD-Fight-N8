@@ -572,6 +572,7 @@ class Fighter {
       const dmg = hit.dmg * att.pow();
       const chip = hit.special ? Math.round(dmg * 0.12) : 0;
       this.hp = Math.max(1, this.hp - chip);
+      this.lastDmg = chip;
       this.guard -= dmg * 0.45 + (hit.super ? 25 : 0);
       this.guardRegenDelay = 70;
       this.state = 'block';
@@ -603,6 +604,7 @@ class Fighter {
     if (this.isArmored() && !hit.super) {
       dmg = Math.round(dmg * 0.6);
       this.hp = Math.max(this.hp - dmg, 1);
+      this.lastDmg = dmg;
       this.flash = 8;
       const hs = Math.round((hit.hitstop ?? 7) * 0.8);
       this.hitstop = hs;
@@ -626,6 +628,7 @@ class Fighter {
     }
     dmg = Math.max(1, Math.round(dmg));
     this.hp -= dmg;
+    this.lastDmg = dmg;
     this.comboDmg += dmg;
     this.comboShow = 90;
     if (!hit.super) att.meter = Math.min(100, att.meter + dmg * 0.45);

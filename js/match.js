@@ -10,8 +10,12 @@ class Match {
     this.stage = { width: 2200, left: 90, right: 2110 };
     this.inputs = opts.inputs;
     this.ai = opts.ai;
-    this.training = !!opts.training;
+    this.practice = opts.practice || null;
+    this.training = !!this.practice;
     this.noKO = this.training;
+    this.history = [];
+    this.info = {};
+    this.adv = null;
     this.winsNeeded = opts.winsNeeded || 2;
     this.f = [
       new Fighter(opts.defs[0], 0, this.inputs[0], this),
@@ -36,6 +40,7 @@ class Match {
   // ------------------------------------------------------------ api for fighters/moves
   addHazard(o) {
     const h = new Hazard(o);
+    h.srcName = o.owner && o.owner.move ? moveName(o.owner.move) : 'Projectile';
     this.hazards.push(h);
     return h;
   }
@@ -98,10 +103,11 @@ class Match {
     this.flash = 0;
     this.cam.x = mid;
     this.cam.zoom = 1;
-    if (this.training) {
+    if (this.practice) {
       this.phase = 'fight';
       this.inputLocked = false;
-      this.announce('TRAINING', '#69f0ae', 60);
+      this.resetPositions(true);
+      this.announce('PRACTICE', '#69f0ae', 60);
     } else this.announce(`ROUND ${this.round}`, '#ffffff', 70);
   }
 
@@ -114,14 +120,8 @@ class Match {
         this.inputLocked = false;
       }
     } else if (this.phase === 'fight') {
-      if (this.training) {
-        for (const f of this.f) {
-          if (f.state !== 'hit' && f.state !== 'down' && f.combo === 0) {
-            f.idleT = (f.idleT || 0) + 1;
-            if (f.idleT > 50) f.hp = Math.min(f.maxHp, f.hp + 25);
-          } else f.idleT = 0;
-        }
-        this.f[0].meter = 100;
+      if (this.practice) {
+        this.practiceTick();
         return;
       }
       if (++this.clockT >= 60) {
@@ -163,6 +163,108 @@ class Match {
         }
       }
     }
+  }
+
+  // ------------------------------------------------------------ practice mode
+  resetPositions(quiet) {
+    const p = this.practice;
+    const st = this.stage;
+    const mid = st.width / 2;
+    const [a, b] = this.f;
+    let ax = mid - 160;
+    let bx = mid + 160;
+    if (PRACTICE_POSITIONS[p.position] === 'LEFT CORNER') {
+      bx = st.left;
+      ax = st.left + 220;
+    } else if (PRACTICE_POSITIONS[p.position] === 'RIGHT CORNER') {
+      bx = st.right;
+      ax = st.right - 220;
+    }
+    const meters = [a.meter, b.meter];
+    a.reset(ax);
+    b.reset(bx);
+    a.meter = meters[0];
+    b.meter = meters[1];
+    a.facing = U.sign(bx - ax);
+    b.facing = -a.facing;
+    this.hazards = [];
+    this.timers = [];
+    this.ghosts = [];
+    this.adv = null;
+    this.cam.x = (ax + bx) / 2;
+    this.inputs.forEach((i) => i.clearBuffer());
+    if (!quiet) this.text('RESET', mid, -260, '#69f0ae', 1);
+  }
+
+  // Records what P1's attacks did, for the attack-data panel.
+  noteHit(att, def, res, name, melee) {
+    if (!this.practice || att !== this.f[0]) return;
+    const i = this.info;
+    i.move = name;
+    i.result = res === 'hit' ? 'HIT' : res === 'block' ? 'BLOCKED' : res === 'armor' ? 'ARMORED' : 'PARRIED';
+    i.damage = res === 'hit' || res === 'block' || res === 'armor' ? def.lastDmg || 0 : 0;
+    if (res === 'hit') {
+      i.combo = def.combo;
+      i.comboDmg = def.comboDmg;
+      if (def.combo > (i.maxCombo || 0) || (def.combo === i.maxCombo && def.comboDmg > i.maxDmg)) {
+        i.maxCombo = def.combo;
+        i.maxDmg = def.comboDmg;
+      }
+    }
+    // frame advantage is measured for melee contact only
+    i.adv = null;
+    this.adv = melee && (res === 'hit' || res === 'block') ? { att, def, t: 0, a: null, d: null, res } : null;
+  }
+
+  practiceTick() {
+    const p = this.practice;
+    const [pl, dummy] = this.f;
+    for (const f of this.f) {
+      const resting = f.state !== 'hit' && f.state !== 'down' && f.state !== 'stunned' && f.combo === 0;
+      f.idleT = resting ? (f.idleT || 0) + 1 : 0;
+      if (p.health === 0 && f.idleT > 40) {
+        f.hp = f.maxHp;
+        f.guard = 100;
+      }
+    }
+    if (p.meter === 0) pl.meter = 100;
+    if (p.cooldowns === 0) for (const f of this.f) for (const k in f.cd) f.cd[k] = 0;
+    if (this.inputs[0].edge.reset) this.resetPositions();
+
+    // frame advantage: who can act first after the last contact
+    const tr = this.adv;
+    if (tr) {
+      tr.t++;
+      const free = (f) => DUMMY_FREE.has(f.state);
+      if (tr.a === null && free(tr.att)) tr.a = tr.t;
+      if (tr.d === null && free(tr.def)) tr.d = tr.t;
+      if (tr.a !== null && tr.d !== null) {
+        this.info.adv = tr.d - tr.a;
+        this.info.advOn = tr.res;
+        this.adv = null;
+      } else if (tr.t > 240) this.adv = null;
+    }
+    void dummy;
+    this.recordInput();
+  }
+
+  recordInput() {
+    const f = this.f[0];
+    const h = this.inputs[0].held;
+    const fw = f.facing > 0 ? h.right : h.left;
+    const bk = f.facing > 0 ? h.left : h.right;
+    const up = h.up || h.jump;
+    const dn = h.down;
+    const dir = up ? (fw ? '↗' : bk ? '↖' : '↑') : dn ? (fw ? '↘' : bk ? '↙' : '↓') : fw ? '→' : bk ? '←' : '';
+    const btns = [['L', 'L'], ['H', 'H'], ['S', 'SP'], ['D', 'DASH'], ['SU', 'SUPER']].filter(([k]) => h[k]).map(([, l]) => l);
+    const key = `${dir}|${btns.join(' ')}`;
+    const top = this.history[0];
+    if (top && top.key === key) {
+      top.n = Math.min(999, top.n + 1);
+      return;
+    }
+    this.history.unshift({ key, dir, btns, n: 1 });
+    if (this.history.length > 14) this.history.pop();
   }
 
   // ------------------------------------------------------------ main tick
@@ -259,8 +361,10 @@ class Match {
   }
 
   meleeHit(a, b) {
-    const res = b.takeHit(a.move.hit, a, a.x, a.facing, null);
+    const mv = a.move;
+    const res = b.takeHit(mv.hit, a, a.x, a.facing, null);
     if (res === 'none') return;
+    this.noteHit(a, b, res, moveName(mv), true);
     if (res === 'block' || res === 'countered') a.moveBlocked = true;
     else a.moveHit = true;
     a.lastHitMf = a.mf;
@@ -294,6 +398,7 @@ class Match {
         if (!U.overlap(h.box(), t.hurtbox())) continue;
         const res = h.owner === t ? 'none' : t.takeHit(h.hit, h.owner, h.sourceX(), h.knockDir(t), h);
         if (res === 'none') continue;
+        this.noteHit(h.owner, t, res, h.srcName, false);
         h.hitLog.set(t, h.age);
         if (res !== 'countered' && !h.pierce) {
           h.dead = true;
@@ -406,7 +511,7 @@ class Match {
     for (const h of this.hazards) if (!(h.trap || h.wall || h.delay > 0)) drawHazard(ctx, h, t);
     for (const p of this.particles) drawParticle(ctx, p);
 
-    if (Game.debug) {
+    if (Game.debug || (this.practice && this.practice.hitboxes)) {
       for (const f of this.f) {
         const hb = f.hurtbox();
         ctx.strokeStyle = '#00e676';
@@ -637,5 +742,80 @@ function drawHUD(ctx, m) {
     }
     ctx.restore();
   }
+  if (m.practice) drawPracticeHUD(ctx, m);
+  ctx.restore();
+}
+
+// ------------------------------------------------------------------ practice HUD
+const PRACTICE_POSITIONS = ['CENTER', 'LEFT CORNER', 'RIGHT CORNER'];
+const NORMAL_NAMES = {
+  L1: 'Light 1', L2: 'Light 2', L3: 'Light 3 (kick)', CL: 'Crouch Light', H: 'Heavy',
+  UH: 'Launcher', DH: 'Sweep', AL: 'Air Light', AH: 'Air Heavy', CR: 'Parry Strike',
+};
+function moveName(m) {
+  if (!m) return '';
+  return m.name || NORMAL_NAMES[m.id] || '';
+}
+
+function drawPracticeHUD(ctx, m) {
+  const p = m.practice;
+  ctx.save();
+  if (p.inputs) {
+    const x = 18;
+    let y = 300;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillRect(x - 8, y - 26, 170, m.history.length * 22 + 14);
+    for (const e of m.history) {
+      ctx.textAlign = 'right';
+      ctx.font = '700 13px sans-serif';
+      ctx.fillStyle = '#9e9e9e';
+      ctx.fillText(String(e.n), x + 28, y);
+      ctx.textAlign = 'left';
+      ctx.font = '900 18px sans-serif';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(e.dir || '·', x + 38, y + 1);
+      ctx.font = '900 14px sans-serif';
+      ctx.fillStyle = '#ffd600';
+      ctx.fillText(e.btns.join(' '), x + 64, y);
+      y += 22;
+    }
+  }
+  if (p.data) {
+    const i = m.info;
+    const x = VIEW_W - 290;
+    const y = 290;
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(x, y, 272, 150);
+    ctx.fillStyle = '#69f0ae';
+    ctx.fillRect(x, y, 272, 3);
+    const adv = i.adv;
+    const advText = adv == null ? '—' : `${adv > 0 ? '+' : ''}${adv} on ${i.advOn}`;
+    const rows = [
+      ['LAST ATTACK', i.move ? `${i.move}` : '—', '#fff'],
+      ['RESULT', i.result || '—', i.result === 'HIT' ? '#69f0ae' : '#fff'],
+      ['DAMAGE', i.damage != null ? String(i.damage) : '—', '#fff'],
+      ['COMBO', i.combo ? `${i.combo} hits · ${i.comboDmg}` : '—', '#fff'],
+      ['BEST COMBO', i.maxCombo ? `${i.maxCombo} hits · ${i.maxDmg}` : '—', '#ffd600'],
+      ['FRAME ADV.', advText, adv == null ? '#fff' : adv > 0 ? '#69f0ae' : adv < 0 ? '#ff5252' : '#fff'],
+    ];
+    rows.forEach(([k, v, c], j) => {
+      const yy = y + 26 + j * 21;
+      ctx.textAlign = 'left';
+      ctx.font = '700 13px sans-serif';
+      ctx.fillStyle = '#80d8ff';
+      ctx.fillText(k, x + 12, yy);
+      ctx.font = '700 15px sans-serif';
+      ctx.fillStyle = c;
+      ctx.fillText(v, x + 112, yy);
+    });
+  }
+  ctx.textAlign = 'center';
+  ctx.font = '700 15px sans-serif';
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#000';
+  const hint = `${Keybinds.text(0, 'reset')}: RESET POSITION   •   ESC: PRACTICE MENU`;
+  ctx.strokeText(hint, VIEW_W / 2, VIEW_H - 10);
+  ctx.fillStyle = '#b9f6ca';
+  ctx.fillText(hint, VIEW_W / 2, VIEW_H - 10);
   ctx.restore();
 }

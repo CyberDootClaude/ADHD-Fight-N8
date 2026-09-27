@@ -194,3 +194,102 @@ class AIController {
     }
   }
 }
+
+// ------------------------------------------------------------------ practice dummy
+// Scripted dummy for Practice mode, modeled on the dummy settings in modern
+// fighting games (action, guard, and a counterattack when it can act again).
+const DUMMY_ACTIONS = ['STAND', 'CROUCH', 'JUMP', 'WALK FORWARD', 'CPU EASY', 'CPU NORMAL', 'CPU HARD'];
+const DUMMY_GUARDS = ['NONE', 'ALL', 'AFTER FIRST HIT', 'RANDOM'];
+const DUMMY_REVERSALS = ['NONE', 'LIGHT', 'HEAVY', 'SPECIAL', 'UP SPECIAL', 'BACK DASH', 'JUMP'];
+const DUMMY_BUSY = new Set(['block', 'hit', 'down', 'getup', 'stunned']);
+const DUMMY_FREE = new Set(['idle', 'walk', 'crouch', 'run', 'air']);
+
+function makePracticeAI(p) {
+  const act = DUMMY_ACTIONS[p.dummy];
+  if (act.startsWith('CPU')) return new AIController(act.slice(4).toLowerCase());
+  return new DummyController(p);
+}
+
+class DummyController {
+  constructor(p) {
+    this.p = p;
+    this.raw = {};
+    this.sinceHit = 999;
+    this.threat = false;
+    this.randomBlock = false;
+    this.wasBusy = false;
+    this.reversal = 0;
+    this.jumpT = 0;
+  }
+
+  threatened(me, opp, g) {
+    const dist = Math.abs(opp.x - me.x);
+    if (opp.state === 'attack' && opp.move && dist < 520) return true;
+    for (const h of g.hazards) {
+      if (h.owner === me || !h.hit || h.dead) continue;
+      const dx = me.x - h.x;
+      if (h.delay > 0 && Math.abs(dx) < 200) return true;
+      const approaching = Math.abs(h.vx) > 1 ? U.sign(h.vx) === U.sign(dx) : true;
+      if (approaching && Math.abs(dx) < 420 + Math.max(h.w, h.h) / 2) return true;
+    }
+    return false;
+  }
+
+  update(me, opp, g) {
+    const r = {};
+    this.raw = r;
+    if (g.inputLocked) return r;
+    const p = this.p;
+    const back = me.facing > 0 ? 'left' : 'right';
+    const fwd = me.facing > 0 ? 'right' : 'left';
+
+    if (me.state === 'hit' || me.state === 'down') this.sinceHit = 0;
+    else this.sinceHit++;
+
+    // counterattack on the first frame the dummy can act again
+    const busy = DUMMY_BUSY.has(me.state);
+    if (this.wasBusy && !busy && DUMMY_FREE.has(me.state) && p.reversal > 0) this.reversal = 3;
+    this.wasBusy = busy;
+    if (this.reversal > 0) {
+      this.reversal--;
+      switch (DUMMY_REVERSALS[p.reversal]) {
+        case 'LIGHT': r.L = true; break;
+        case 'HEAVY': r.H = true; break;
+        case 'SPECIAL': r.S = true; break;
+        case 'UP SPECIAL': r.S = true; r.up = true; break;
+        case 'BACK DASH': r.D = true; r[back] = true; break;
+        case 'JUMP': r.up = true; break;
+      }
+      return r;
+    }
+
+    // guarding: hold back only while something is coming, so the dummy
+    // doesn't walk away the rest of the time
+    const threat = this.threatened(me, opp, g);
+    if (threat && !this.threat) this.randomBlock = Math.random() < 0.5;
+    this.threat = threat;
+    const guard = DUMMY_GUARDS[p.guard];
+    const guarding = guard === 'ALL' || (guard === 'AFTER FIRST HIT' && this.sinceHit < 60) || (guard === 'RANDOM' && this.randomBlock);
+    const crouching = DUMMY_ACTIONS[p.dummy] === 'CROUCH';
+    if (guarding && (threat || me.state === 'block')) {
+      r[back] = true;
+      if (crouching) r.down = true;
+      return r;
+    }
+
+    switch (DUMMY_ACTIONS[p.dummy]) {
+      case 'CROUCH':
+        r.down = true;
+        break;
+      case 'JUMP':
+        // tap up repeatedly so it keeps jumping in place
+        this.jumpT = (this.jumpT + 1) % 6;
+        if (this.jumpT < 2 && me.onGround) r.up = true;
+        break;
+      case 'WALK FORWARD':
+        if (Math.abs(opp.x - me.x) > 110) r[fwd] = true;
+        break;
+    }
+    return r;
+  }
+}
