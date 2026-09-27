@@ -1,0 +1,53 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #05030c;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#game {
+  display: block;
+  background: #000;
+  image-rendering: auto;
+}
+
+/* on-screen controls, only shown after the first touch */
+#touch { display: none; }
+#touch.on { display: block; }
+#touch .b {
+  position: fixed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.85);
+  font: 700 14px sans-serif;
+  background: rgba(255, 255, 255, 0.12);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+  touch-action: none;
+}
+#touch .b.pressed { background: rgba(255, 214, 0, 0.45); }
+#touch .dpad .b { width: 58px; height: 58px; border-radius: 12px; }
+#touch .up { left: 78px; bottom: 150px; }
+#touch .down { left: 78px; bottom: 18px; }
+#touch .left { left: 14px; bottom: 84px; }
+#touch .right { left: 142px; bottom: 84px; }
+#touch .ul, #touch .ur, #touch .dl, #touch .dr { opacity: 0.25; width: 50px !important; height: 50px !important; }
+#touch .ul { left: 18px; bottom: 154px; }
+#touch .ur { left: 146px; bottom: 154px; }
+#touch .dl { left: 18px; bottom: 22px; }
+#touch .dr { left: 146px; bottom: 22px; }
+#touch .btns .b { width: 64px; height: 64px; }
+#touch .l { right: 150px; bottom: 30px; }
+#touch .h { right: 80px; bottom: 90px; }
+#touch .s { right: 14px; bottom: 150px; }
+#touch .d { right: 14px; bottom: 30px; font-size: 11px; }
+#touch .su { right: 150px; bottom: 110px; font-size: 11px; background: rgba(255, 145, 0, 0.25); }
+#touch .pause { top: 10px; left: 50%; transform: translateX(-50%); width: 44px; height: 44px; }
