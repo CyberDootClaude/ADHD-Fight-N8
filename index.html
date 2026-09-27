@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>ADHD Fight N8</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game" width="1280" height="720"></canvas>
+
+  <div id="touch">
+    <div class="dpad">
+      <div data-k="up" class="b up">▲</div>
+      <div data-k="left" class="b left">◀</div>
+      <div data-k="right" class="b right">▶</div>
+      <div data-k="down" class="b down">▼</div>
+      <div data-k="up,left" class="b ul"></div>
+      <div data-k="up,right" class="b ur"></div>
+      <div data-k="down,left" class="b dl"></div>
+      <div data-k="down,right" class="b dr"></div>
+    </div>
+    <div class="btns">
+      <div data-k="L" class="b l">L</div>
+      <div data-k="H" class="b h">H</div>
+      <div data-k="S" class="b s">SP</div>
+      <div data-k="D" class="b d">DASH</div>
+      <div data-k="SU" class="b su">SUPER</div>
+    </div>
+    <div data-k="start" class="b pause">❚❚</div>
+  </div>
+
+  <script src="js/util.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/moves.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/characters.js"></script>
+  <script src="js/fighter.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/match.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
