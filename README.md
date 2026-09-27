@@ -69,3 +69,6 @@ On phones and tablets, on-screen touch controls appear after your first tap.
 - `js/game.js`: menus, scenes and the main loop
 
 Press `` ` `` during play to show hitboxes.
+
+## Play online (GitHub Pages)
+The workflow in `.github/workflows/pages.yml` publishes the game to GitHub Pages on every push. To turn it on the first time, go to **Settings → Pages → Build and deployment → Source** and choose **GitHub Actions**. Then re-run the "Deploy to GitHub Pages" workflow from the Actions tab. The game will be live at `https://cyberdootclaude.github.io/ADHD-Fight-N8/`.
