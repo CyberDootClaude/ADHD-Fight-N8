@@ -100,4 +100,4 @@ Press `` ` `` during play to show hitboxes.
 ## Play online (GitHub Pages)
 The game is live at https://cyberdootclaude.github.io/ADHD-Fight-N8/.
 
-`.github/workflows/pages.yml` redeploys the site on every push to `main` or to a `claude/...` branch. Claude pushes its branch right before opening a pull request, so the live game updates as soon as a PR is opened: wait about a minute and refresh. Merging the PR into `main` keeps the site on that version.
+`.github/workflows/pages.yml` redeploys the site on every push to `main` or to a `claude/...` branch. Claude pushes its branch right before opening a pull request, so the live game updates as soon as a PR is opened: wait about a minute and refresh. `index.html` loads the game files with a fresh version tag on every page load, so a normal refresh always gets the newest version.

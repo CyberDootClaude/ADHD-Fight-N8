@@ -30,9 +30,6 @@ jobs:
         run: |
           mkdir -p _site
           cp -r index.html css js .nojekyll _site/
-          # Cache-bust scripts and styles so a normal refresh loads the new version
-          v="${GITHUB_SHA::8}"
-          sed -i -E "s#(src=\"js/[a-z]+\.js)\"#\1?v=$v\"#g; s#(href=\"css/style\.css)\"#\1?v=$v\"#g" _site/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
