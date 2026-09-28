@@ -48,6 +48,8 @@ class Fighter {
     this.combo = 0;
     this.comboDmg = 0;
     this.comboShow = 0;
+    this.adrenalineShown = false;
+    this.armorUsed = false;
     this.knockdown = false;
     this.bounced = false;
     this.hidden = false;
@@ -63,7 +65,14 @@ class Fighter {
     return (this.status.slow > 0 ? 0.6 : 1) * (this.status.speed > 0 ? 1.3 : 1);
   }
   pow() {
-    return this.def.stats.power * (this.status.power > 0 ? 1.25 : 1);
+    return this.def.stats.power * (this.status.power > 0 ? 1.2 : 1) * (this.adrenaline() ? ADRENALINE_POWER : 1);
+  }
+  // Comeback mechanic: below 30% health you hit a little harder and build meter faster.
+  adrenaline() {
+    return this.hp > 0 && this.hp < this.maxHp * ADRENALINE_HP;
+  }
+  gainMeter(n) {
+    this.meter = Math.min(100, this.meter + n * (this.adrenaline() ? ADRENALINE_METER : 1));
   }
   opp() {
     return this.g.opp(this);
@@ -109,6 +118,7 @@ class Fighter {
     if (this.status.armor > 0) return true;
     const m = this.move;
     if (this.state !== 'attack' || !m) return false;
+    if (this.armorUsed) return false; // armor on a move absorbs one hit
     if (m.armor && this.mf >= m.armor[0] && this.mf <= m.armor[1]) return true;
     return !!(this.def.heavyArmor && m.type === 'heavy' && this.mf <= m.startup + m.active);
   }
@@ -418,6 +428,7 @@ class Fighter {
     this.moveBlocked = false;
     this.lastHitMf = -99;
     this.moveSerial++;
+    this.armorUsed = false;
     this.slamDive = false;
     this.hidden = false;
     if (m.lunge && this.onGround) this.vx += this.facing * m.lunge;
@@ -635,7 +646,9 @@ class Fighter {
 
     let dmg = hit.dmg * att.pow();
     if (this.isArmored() && !hit.super) {
-      dmg = Math.round(dmg * 0.6);
+      if (s.armor > 0) s.armor = Math.max(0, s.armor - 70);
+      else this.armorUsed = true;
+      dmg = Math.round(dmg * 0.7);
       this.hp = Math.max(this.hp - dmg, 1);
       this.lastDmg = dmg;
       this.flash = 8;
@@ -651,7 +664,10 @@ class Fighter {
     const continuing = this.state === 'hit' || this.state === 'stunned' || s.freeze > 0;
     this.combo = continuing ? this.combo + 1 : 1;
     if (!continuing) this.comboDmg = 0;
-    const scale = Math.max(0.3, 1 - 0.085 * (this.combo - 1));
+    // damage scaling: each hit in a combo does less, and once a combo has
+    // done about a third of this fighter's health the rest is halved
+    let scale = Math.max(0.25, 1 - 0.1 * (this.combo - 1));
+    if (continuing && this.comboDmg > this.maxHp * COMBO_SOFT_CAP) scale *= 0.5;
     // counter hit: hit during an attack's startup, during a whiffed Flow's
     // recovery, or by a fighter whose Flow just succeeded
     const flowPunish = this.state === 'attack' && m && m.flow && this.mf > m.startup + m.active;
@@ -669,10 +685,14 @@ class Fighter {
     this.lastDmg = dmg;
     this.comboDmg += dmg;
     this.comboShow = 90;
-    if (!hit.super) att.meter = Math.min(100, att.meter + dmg * 0.45);
-    this.meter = Math.min(100, this.meter + dmg * 0.3);
+    if (!hit.super) att.gainMeter(dmg * 0.35);
+    this.gainMeter(dmg * 0.35);
+    if (this.adrenaline() && !this.adrenalineShown && this.hp > 0) {
+      this.adrenalineShown = true;
+      g.text('ADRENALINE!', this.x, this.y - 240, '#ff5252', 1.1);
+    }
 
-    let stun = hit.stun * Math.max(0.5, 1 - 0.04 * (this.combo - 1)) + (counterHit ? 8 : 0);
+    let stun = hit.stun * Math.max(0.45, 1 - 0.05 * (this.combo - 1)) + (counterHit ? 8 : 0);
     if (hit.effect && hit.effect.type === 'shock') stun += 10;
     this.state = 'hit';
     this.timer = Math.round(stun);

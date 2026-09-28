@@ -74,6 +74,21 @@ On phones and tablets, on-screen touch controls appear after your first tap.
   - A successful Flow staggers the attacker, refunds some meter, and makes your next hit a **Flow Counter** (counter-hit damage and stun).
   - If nothing hits you, Flow has a recovery where any hit on you is a **punish** counter-hit.
 - **Status effects**: burn, poison, slow, freeze, shock.
+- **Adrenaline (comeback mechanic)**: below 30% health you deal 12% more damage and build meter 50% faster. The HUD shows **ADRENALINE** and you glow red.
+- **No touch-of-death**: each extra hit in a combo does less damage, and once a combo passes about a third of the opponent's health, the rest does half damage.
+- **Armor** absorbs one hit per move. The losing player of each round gets bonus meter for the next.
+
+## Balance
+Every character is tuned so no matchup is a blowout while keeping their style: heavies are tanky and hit hard, fast characters are mobile, zoners control space.
+
+`tools/balance.js` checks this. It plays every matchup, hard CPU vs hard CPU on both sides, and prints each character's win rate, damage and combo stats:
+
+```sh
+node tools/balance.js                  # ~2,000 matches, runs in under a minute
+DETAIL=ferrus,kaze node tools/balance.js   # also shows which moves do each one's damage
+```
+
+Current results over 2,880 matches: every character wins between 43% and 58% of matches (it was 7% to 97% before balancing), and in about 59% of rounds the winner finishes below 30% health.
 
 ## Roster
 

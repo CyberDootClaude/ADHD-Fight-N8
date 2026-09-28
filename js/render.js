@@ -428,6 +428,18 @@ function drawFighter(ctx, f, t) {
     ctx.globalAlpha = 0.15;
   }
   // buff auras
+  if (f.adrenaline() && f.state !== 'ko') {
+    // Adrenaline (below 30% health): a pulsing red glow
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const beat = 0.18 + Math.max(0, Math.sin(t * 0.25)) * 0.22;
+    const gr = ctx.createRadialGradient(f.x, f.y - 75, 10, f.x, f.y - 75, 120 * f.def.size);
+    gr.addColorStop(0, `rgba(255,23,68,${beat})`);
+    gr.addColorStop(1, 'rgba(255,23,68,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(f.x - 140, f.y - 210, 280, 230);
+    ctx.restore();
+  }
   const flowing = f.state === 'attack' && f.move && f.move.flow;
   if (flowing) {
     // Flow Stance: a pulsing ring while the evade window is open, dim during recovery
