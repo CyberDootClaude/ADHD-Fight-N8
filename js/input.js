@@ -1,5 +1,7 @@
 // Keyboard, gamepad and touch input -> per-player logical buttons.
-const BUTTONS = ['left', 'right', 'up', 'down', 'L', 'H', 'S', 'D', 'SU', 'FL', 'jump', 'start', 'esc', 'reset'];
+// padBack / padAlt mark the gamepad's B and Y buttons so menus can treat them
+// as Back and Random like every other game, while in fights they stay Special and Heavy.
+const BUTTONS = ['left', 'right', 'up', 'down', 'L', 'H', 'S', 'D', 'SU', 'FL', 'jump', 'start', 'esc', 'reset', 'padBack', 'padAlt'];
 const BUFFER_FRAMES = 10;
 
 const DEFAULT_KEYMAP = [
@@ -178,6 +180,8 @@ function readGamepad(index) {
   r.L = b(2);
   r.H = b(3);
   r.S = b(1);
+  r.padBack = b(1);
+  r.padAlt = b(3);
   r.D = b(4);
   r.FL = b(5);
   r.SU = b(6) || b(7);

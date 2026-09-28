@@ -87,8 +87,9 @@ const Game = {
       } else hold[d] = 0;
     }
     r.ok = inp.edge.L || inp.edge.start || inp.edge.jump;
-    r.back = inp.edge.H || inp.edge.esc;
-    r.rand = inp.edge.S;
+    // keyboard: Heavy = back, Special = random. Gamepad: B = back, Y = random.
+    r.back = inp.edge.esc || inp.edge.padBack || (inp.edge.H && !inp.held.padAlt);
+    r.rand = inp.edge.padAlt || (inp.edge.S && !inp.held.padBack);
     return r;
   },
 

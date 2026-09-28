@@ -829,7 +829,7 @@ function drawPracticeHUD(ctx, m) {
   ctx.font = '700 15px sans-serif';
   ctx.lineWidth = 3;
   ctx.strokeStyle = '#000';
-  const hint = `${Keybinds.text(0, 'reset')}: RESET POSITION   •   ESC: PRACTICE MENU`;
+  const hint = Touch.active ? '❚❚ BUTTON: PRACTICE MENU (RESET POSITION IS IN THERE)' : `${Keybinds.text(0, 'reset')}: RESET POSITION   •   ESC: PRACTICE MENU`;
   ctx.strokeText(hint, VIEW_W / 2, VIEW_H - 10);
   ctx.fillStyle = '#b9f6ca';
   ctx.fillText(hint, VIEW_W / 2, VIEW_H - 10);
