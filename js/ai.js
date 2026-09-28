@@ -52,6 +52,17 @@ class AIController {
     this.raw = {};
     const c = this.cfg;
     if (!c || !me || g.inputLocked) return this.raw;
+    if (me.state === 'thrown') {
+      // try to break the throw by pressing Heavy
+      this.plan = [];
+      if (!this.techDecided) {
+        this.techDecided = true;
+        this.techTry = U.chance(c.block * 0.7);
+      }
+      if (this.techTry && me.timer < CLASSIC.throwTech - 3) this.raw.H = true;
+      return this.raw;
+    }
+    this.techDecided = false;
     if (me.state === 'hit' || me.state === 'down' || me.state === 'ko' || me.state === 'stunned' || me.status.freeze > 0) {
       this.plan = [];
       this.wait = U.randi(0, c.react);
@@ -188,6 +199,10 @@ class AIController {
     }
 
     // close range
+    if (g.classic && dist < 110 && U.chance(opp.state === 'block' || opp.state === 'idle' ? 0.25 : 0.1)) {
+      this.tap({ fwd: true, H: true }, 8);
+      return;
+    }
     const r = Math.random();
     if (r < 0.12 * (1 - c.aggro)) {
       this.push({ back: true }, U.randi(10, 20));
@@ -279,6 +294,11 @@ class DummyController {
 
     // guarding: hold back only while something is coming, so the dummy
     // doesn't walk away the rest of the time
+    if (me.state === 'thrown') {
+      // with guard on, the dummy breaks throws
+      if (DUMMY_GUARDS[p.guard] !== 'NONE' && me.timer < CLASSIC.throwTech - 3) r.H = true;
+      return r;
+    }
     const t = threatInfo(me, opp, g, 520, 420);
     const threat = t.threat;
     if (threat && !this.threat) this.randomBlock = Math.random() < 0.5;

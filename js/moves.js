@@ -135,6 +135,63 @@ const FLOW_MOVE = mk({
   pose: { wind: POSES.flow, strike: POSES.flow },
 });
 
+// ---------------------------------------------------------------- classic style
+// "Classic" game style: a slower, grounded, Street Fighter-like ruleset.
+// Everything else (characters, specials, supers, Flow, blocking) is shared.
+const CLASSIC = {
+  walk: 0.55,        // walk speed multiplier (and no running)
+  dash: 0.8,         // dash speed multiplier (short dashes only)
+  jumpDrift: 5.4,    // fixed horizontal jump speed, no steering in the air
+  lightStartup: 1,   // extra startup / recovery frames on light normals
+  lightRecovery: 3,
+  heavyStartup: 2,   // ...and on heavy normals
+  heavyRecovery: 6,
+  throwRange: 105,   // max distance between fighters to throw
+  throwTech: 10,     // frames the defender has to break a throw with Heavy
+  clock: 99,         // round timer in seconds
+};
+
+// Per-character damage adjustments that only apply in Classic, found with
+// `CLASSIC=1 node tools/balance.js`. Slower normals help armored heavies and
+// hurt characters who rely on quick pokes and teleports.
+const CLASSIC_POWER = { magna: 0.9, ferrus: 0.95, chrono: 1.1, volta: 1.1, umbra: 1.06 };
+
+function classicStats(def) {
+  const st = def.stats;
+  const walk = st.walk * CLASSIC.walk;
+  return Object.assign({}, st, {
+    walk, run: walk, airJumps: 0, airDash: 0, dash: st.dash * CLASSIC.dash, airSpeed: CLASSIC.jumpDrift,
+    power: st.power * (CLASSIC_POWER[def.id] || 1),
+  });
+}
+
+const CLASSIC_NORMALS = {};
+for (const k in NORMALS) {
+  const m = NORMALS[k];
+  const light = m.type === 'light';
+  CLASSIC_NORMALS[k] = mk(Object.assign({}, m, {
+    startup: m.startup + (light ? CLASSIC.lightStartup : CLASSIC.heavyStartup),
+    recovery: m.recovery + (light ? CLASSIC.lightRecovery : CLASSIC.heavyRecovery),
+  }));
+}
+
+// Throws (Classic only): forward or back + Heavy right next to the opponent.
+// They can't be blocked, beat Flow (a throw isn't a hit) and break armor.
+const THROW_HIT = { dmg: 100, stun: 30, kb: [10, -9], hitstop: 10, knockdown: true, unblockable: true, throw: true };
+const THROW_MOVE = mk({
+  id: 'THROW', type: 'throw', name: 'Throw', startup: CLASSIC.throwTech, active: 1, recovery: 18,
+  pose: { wind: POSES.punch2W, strike: POSES.heavy },
+  onFrame(f, g, mf, m) {
+    const o = f.throwTarget;
+    if (mf === m.startup + 1 && o && o.state === 'thrown' && o.thrower === f) {
+      o.state = 'idle';
+      o.thrower = null;
+      o.takeHit(THROW_HIT, f, f.x, f.facing, null);
+      g.shake = Math.max(g.shake, 8);
+    }
+  },
+});
+
 // ---------------------------------------------------------------- helpers
 const HIT = (o) => Object.assign({ dmg: 50, stun: 20, kb: [6, -2], hitstop: 7 }, o);
 
