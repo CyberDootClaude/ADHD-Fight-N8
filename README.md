@@ -86,9 +86,10 @@ Every character is tuned so no matchup is a blowout while keeping their style: h
 ```sh
 node tools/balance.js                  # ~2,000 matches, runs in under a minute
 DETAIL=ferrus,kaze node tools/balance.js   # also shows which moves do each one's damage
+ONLY=nova,sahar node tools/balance.js 40   # only play matchups among these characters
 ```
 
-Current results over 2,880 matches: every character wins between 43% and 58% of matches (it was 7% to 97% before balancing), and in about 59% of rounds the winner finishes below 30% health.
+Current results over 3,600 matches: every character wins between 44% and 58% of matches (it was 7% to 97% before balancing), and in about 60% of rounds the winner finishes below 30% health.
 
 ## Roster
 

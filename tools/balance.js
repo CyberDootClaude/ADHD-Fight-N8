@@ -3,6 +3,7 @@
 //
 //   node tools/balance.js [matchesPerPair=6]
 //   DETAIL=ferrus,kaze node tools/balance.js   # also show where each one's damage comes from
+//   ONLY=nova,sahar node tools/balance.js 40    # only play matchups among these characters
 const vm = require('vm'), fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
 const PER = +(process.argv[2] || 6); // matches per ordered pair (each side)
@@ -15,7 +16,7 @@ vm.createContext(ctx);
 for (const f of ['util', 'audio', 'input', 'moves', 'entities', 'characters', 'fighter', 'render', 'ai', 'match'])
   vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', f + '.js'), 'utf8'), ctx, { filename: f });
 vm.runInContext('var Game = { debug: false };', ctx);
-const out = vm.runInContext(`(function(PER){
+const out = vm.runInContext(`(function(PER, ONLY){
   const N = ROSTER.length, S = {};
   ROSTER.forEach(d => S[d.id] = { w: 0, g: 0, dmg: 0, dmgTaken: 0, hits: 0, bigCombos: 0, maxCombo: 0, maxComboDmg: 0, perfects: 0, rounds: 0, roundsWon: 0, frames: 0, bySrc: {normal:0, special:0, super:0, dot:0} });
   const M = Array.from({length: N}, () => new Array(N).fill(0)); // M[i][j] wins of i vs j
@@ -24,7 +25,9 @@ const out = vm.runInContext(`(function(PER){
     return new Match({ defs: [ROSTER[i], ROSTER[j]], stage: 0, inputs, ai: [new AIController('hard'), new AIController('hard')], winsNeeded: 2 });
   };
   let closeRounds = 0, totalRounds = 0, hpLeftSum = 0, comebacks = 0;
-  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { if (i === j) continue;
+  const only = ONLY ? ONLY.split(',') : null;
+  const use = (i) => !only || only.includes(ROSTER[i].id);
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { if (i === j || !use(i) || !use(j)) continue;
     for (let k = 0; k < PER; k++) {
       const m = mk(i, j);
       const ids = [ROSTER[i].id, ROSTER[j].id];
@@ -75,8 +78,8 @@ const out = vm.runInContext(`(function(PER){
     }
   }
   return { S, M, ids: ROSTER.map(d => d.id), closeRounds, totalRounds, avgWinnerHp: hpLeftSum / totalRounds, comebacks };
-})(${PER})`, ctx);
-const rows = out.ids.map(id => {
+})(${PER}, ${JSON.stringify(process.env.ONLY || '')})`, ctx);
+const rows = out.ids.filter(id => out.S[id].g).map(id => {
   const s = out.S[id];
   const tot = s.bySrc.normal + s.bySrc.special + s.bySrc.super || 1;
   return { id, win: (100 * s.w / s.g).toFixed(1), rounds: (100 * s.roundsWon / s.rounds).toFixed(1), dmgRatio: (s.dmg / (s.dmgTaken || 1)).toFixed(2), maxCombo: s.maxCombo, maxComboDmg: s.maxComboDmg, perfects: s.perfects, norm: Math.round(100 * s.bySrc.normal / tot), spec: Math.round(100 * s.bySrc.special / tot), sup: Math.round(100 * s.bySrc.super / tot), secs: Math.round(s.frames / s.g / 60) };
