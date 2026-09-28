@@ -13,7 +13,19 @@ npx http-server .   # then open http://localhost:8080
 - **2 Players** — local versus on one keyboard, or with gamepads
 - **Practice** — beat up a bot with full control over it (see below)
 - **CPU vs CPU** — watch the AI fight
-- **Settings** — game speed (**Fast** / **Turbo** / **Hyper**), CPU level, rounds to win, sound, and **Controls** for remapping keys
+- **Settings** — **game style** (Fast or Classic, below), game speed (**Fast** / **Turbo** / **Hyper**), CPU level, rounds to win, sound, and **Controls** for remapping keys
+
+## Game styles
+**Fast** (default) is the original: air-dashes, double jumps, running, and free-flowing combos.
+
+**Classic** is a Street Fighter-style ruleset with the same fighters, specials, supers, Flow and blocking. Turn it on in **Settings → Game Style**.
+- **Movement:** grounded and deliberate. Walking is about half speed, there's no running (just short dashes), no double jumps or air-dashes, and jump arcs are fixed, so you can't steer mid-air.
+- **Normal attacks:** slower to start and recover, so a missed attack can be punished. Normals have no armor.
+- **Combos:** light attacks chain only when they connect, and normals cancel only into specials and supers (no jump or dash cancels).
+- **Throws:** press forward or back + **Heavy** right next to the opponent. Throws can't be blocked, beat Flow and break armor. The defender can break one (a "tech") by pressing Heavy within 10 frames.
+- **Timer:** rounds last 99 seconds.
+
+Classic has its own balance pass: every character wins 43% to 55% of matches in `CLASSIC=1 node tools/balance.js`.
 
 ## Practice mode
 Modeled on the training modes in Street Fighter 6 and Tekken 8. Nobody can be knocked out. Open the practice menu with **Esc**.
@@ -87,6 +99,7 @@ Every character is tuned so no matchup is a blowout while keeping their style: h
 node tools/balance.js                  # ~2,000 matches, runs in under a minute
 DETAIL=ferrus,kaze node tools/balance.js   # also shows which moves do each one's damage
 ONLY=nova,sahar node tools/balance.js 40   # only play matchups among these characters
+CLASSIC=1 node tools/balance.js            # use the Classic rules
 ```
 
 Current results over 3,600 matches: every character wins between 44% and 58% of matches (it was 7% to 97% before balancing), and in about 60% of rounds the winner finishes below 30% health.

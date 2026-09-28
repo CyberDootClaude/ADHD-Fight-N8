@@ -4,6 +4,7 @@
 //   node tools/balance.js [matchesPerPair=6]
 //   DETAIL=ferrus,kaze node tools/balance.js   # also show where each one's damage comes from
 //   ONLY=nova,sahar node tools/balance.js 40    # only play matchups among these characters
+//   CLASSIC=1 node tools/balance.js             # use the Classic (Street Fighter-style) rules
 const vm = require('vm'), fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
 const PER = +(process.argv[2] || 6); // matches per ordered pair (each side)
@@ -16,13 +17,13 @@ vm.createContext(ctx);
 for (const f of ['util', 'audio', 'input', 'moves', 'entities', 'characters', 'fighter', 'render', 'ai', 'match'])
   vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', f + '.js'), 'utf8'), ctx, { filename: f });
 vm.runInContext('var Game = { debug: false };', ctx);
-const out = vm.runInContext(`(function(PER, ONLY){
+const out = vm.runInContext(`(function(PER, ONLY, CLASSIC_ON){
   const N = ROSTER.length, S = {};
   ROSTER.forEach(d => S[d.id] = { w: 0, g: 0, dmg: 0, dmgTaken: 0, hits: 0, bigCombos: 0, maxCombo: 0, maxComboDmg: 0, perfects: 0, rounds: 0, roundsWon: 0, frames: 0, bySrc: {normal:0, special:0, super:0, dot:0} });
   const M = Array.from({length: N}, () => new Array(N).fill(0)); // M[i][j] wins of i vs j
   const mk = (i, j) => {
     const inputs = [new PlayerInput(), new PlayerInput()];
-    return new Match({ defs: [ROSTER[i], ROSTER[j]], stage: 0, inputs, ai: [new AIController('hard'), new AIController('hard')], winsNeeded: 2 });
+    return new Match({ defs: [ROSTER[i], ROSTER[j]], stage: 0, inputs, ai: [new AIController('hard'), new AIController('hard')], winsNeeded: 2, classic: CLASSIC_ON });
   };
   let closeRounds = 0, totalRounds = 0, hpLeftSum = 0, comebacks = 0;
   const only = ONLY ? ONLY.split(',') : null;
@@ -78,7 +79,7 @@ const out = vm.runInContext(`(function(PER, ONLY){
     }
   }
   return { S, M, ids: ROSTER.map(d => d.id), closeRounds, totalRounds, avgWinnerHp: hpLeftSum / totalRounds, comebacks };
-})(${PER}, ${JSON.stringify(process.env.ONLY || '')})`, ctx);
+})(${PER}, ${JSON.stringify(process.env.ONLY || '')}, ${!!process.env.CLASSIC})`, ctx);
 const rows = out.ids.filter(id => out.S[id].g).map(id => {
   const s = out.S[id];
   const tot = s.bySrc.normal + s.bySrc.special + s.bySrc.super || 1;

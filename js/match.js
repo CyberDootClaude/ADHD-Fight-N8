@@ -12,6 +12,7 @@ class Match {
     this.ai = opts.ai;
     this.practice = opts.practice || null;
     this.training = !!this.practice;
+    this.classic = !!opts.classic;
     this.noKO = this.training;
     this.history = [];
     this.info = {};
@@ -94,7 +95,7 @@ class Match {
     this.ghosts = [];
     this.phase = 'intro';
     this.phaseT = 0;
-    this.clock = 60;
+    this.clock = this.classic ? CLASSIC.clock : 60;
     this.clockT = 0;
     this.inputLocked = true;
     this.superFreeze = 0;

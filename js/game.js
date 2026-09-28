@@ -20,6 +20,10 @@ const SPEEDS = [
   { name: 'HYPER', v: 1.4 },
 ];
 const LEVELS = ['easy', 'normal', 'hard'];
+const STYLES = [
+  { name: 'FAST', tip: 'The original: air-dashes, double jumps, free-flowing combos.' },
+  { name: 'CLASSIC', tip: 'Street Fighter style: grounded, slower attacks, stricter combos, throws (→/← + Heavy up close).' },
+];
 const PRACTICE_ROWS = [
   ['DUMMY ACTION', 'dummy', DUMMY_ACTIONS],
   ['DUMMY GUARD', 'guard', DUMMY_GUARDS],
@@ -38,7 +42,7 @@ const Game = {
   scene: 'title',
   t: 0,
   debug: /debug/.test(location.search),
-  settings: { speed: 0, level: 1, rounds: 1, sound: true },
+  settings: { style: 0, speed: 0, level: 1, rounds: 1, sound: true },
   practice: { dummy: 0, guard: 0, reversal: 0, health: 0, meter: 0, cooldowns: 1, position: 0, hitboxes: 0, inputs: 1, data: 1 },
   menuIn: new PlayerInput(),
   inputs: [new PlayerInput(), new PlayerInput()],
@@ -53,6 +57,7 @@ const Game = {
       Object.assign(this.settings, JSON.parse(localStorage.getItem('adhd-fight-settings') || '{}'));
       Object.assign(this.practice, JSON.parse(localStorage.getItem('adhd-fight-practice') || '{}'));
     } catch (e) { /* ignore */ }
+    if (!(this.settings.style >= 0 && this.settings.style < STYLES.length)) this.settings.style = 0;
     for (const [, key, opts] of PRACTICE_ROWS) {
       const v = this.practice[key];
       if (!Number.isInteger(v) || v < 0 || v >= opts.length) this.practice[key] = 0;
@@ -122,7 +127,7 @@ const Game = {
       case 'settings': return this.updateSettings(n);
       case 'controls': return this.updateControls(n, () => {
         this.go('settings');
-        this.cursor = 4;
+        this.cursor = this.SETTINGS_ITEMS.indexOf('CONTROLS');
       });
       case 'howto':
         if (n.ok || n.back) {
@@ -164,30 +169,33 @@ const Game = {
     else this.go('howto');
   },
 
-  SETTINGS_ITEMS: ['GAME SPEED', 'CPU LEVEL', 'ROUNDS TO WIN', 'SOUND', 'CONTROLS', 'BACK'],
+  SETTINGS_ITEMS: ['GAME STYLE', 'GAME SPEED', 'CPU LEVEL', 'ROUNDS TO WIN', 'SOUND', 'CONTROLS', 'BACK'],
 
   updateSettings(n) {
-    this.menuMove(n, this.SETTINGS_ITEMS.length);
+    const items = this.SETTINGS_ITEMS;
+    this.menuMove(n, items.length);
     const s = this.settings;
-    const d = n.left ? -1 : n.right ? 1 : n.ok && this.cursor < 4 ? 1 : 0;
+    const item = items[this.cursor];
+    const d = n.left ? -1 : n.right ? 1 : n.ok && this.cursor < items.indexOf('CONTROLS') ? 1 : 0;
     if (d) {
       SFX.play('select');
-      if (this.cursor === 0) s.speed = (s.speed + d + SPEEDS.length) % SPEEDS.length;
-      if (this.cursor === 1) s.level = (s.level + d + LEVELS.length) % LEVELS.length;
-      if (this.cursor === 2) s.rounds = (s.rounds + d + ROUNDS.length) % ROUNDS.length;
-      if (this.cursor === 3) {
+      if (item === 'GAME STYLE') s.style = (s.style + d + STYLES.length) % STYLES.length;
+      if (item === 'GAME SPEED') s.speed = (s.speed + d + SPEEDS.length) % SPEEDS.length;
+      if (item === 'CPU LEVEL') s.level = (s.level + d + LEVELS.length) % LEVELS.length;
+      if (item === 'ROUNDS TO WIN') s.rounds = (s.rounds + d + ROUNDS.length) % ROUNDS.length;
+      if (item === 'SOUND') {
         s.sound = !s.sound;
         SFX.enabled = s.sound;
       }
       this.saveSettings();
     }
-    if (n.ok && this.cursor === 4) {
+    if (n.ok && item === 'CONTROLS') {
       SFX.play('confirm');
       this.openControls();
       this.go('controls');
       return;
     }
-    if (n.back || (n.ok && this.cursor === 5)) {
+    if (n.back || (n.ok && item === 'BACK')) {
       SFX.play('back');
       this.go('title');
       this.cursor = 4;
@@ -303,6 +311,7 @@ const Game = {
       practice: this.mode === 'training' ? this.practice : null,
       winsNeeded: ROUNDS[this.settings.rounds],
       mergeKeys: this.mode !== 'vs',
+      classic: this.settings.style === 1,
     });
     this.paused = false;
     this.pauseView = null;
@@ -647,7 +656,7 @@ const Game = {
     ctx.strokeText('ADHD FIGHT N8', 0, 0);
     ctx.fillStyle = gr;
     ctx.fillText('ADHD FIGHT N8', 0, 0);
-    txt(ctx, `ELEMENTAL ARENA BRAWLER  •  ${ROSTER.length} FIGHTERS  •  NO WAITING AROUND`, 0, 46, 22, '#80d8ff', 'center', 4, 700, 'sans-serif');
+    txt(ctx, `ELEMENTAL ARENA BRAWLER  •  ${ROSTER.length} FIGHTERS  •  ${STYLES[this.settings.style].name} STYLE`, 0, 46, 22, '#80d8ff', 'center', 4, 700, 'sans-serif');
     ctx.restore();
     this.drawMenu(ctx, this.TITLE_ITEMS, VIEW_W / 2, 290);
     txt(ctx, '↑↓ choose   •   F / Enter / Ⓧ confirm   •   ` toggles hitboxes', VIEW_W / 2, VIEW_H - 24, 18, '#ddd', 'center', 3, 700, 'sans-serif');
@@ -657,10 +666,11 @@ const Game = {
     this.drawBackdrop(ctx, this.titleStage, 0.6);
     txt(ctx, 'SETTINGS', VIEW_W / 2, 110, 72, '#ffd600');
     const s = this.settings;
-    this.drawMenu(ctx, this.SETTINGS_ITEMS, VIEW_W / 2, 230, [
-      SPEEDS[s.speed].name, LEVELS[s.level].toUpperCase(), ROUNDS[s.rounds], s.sound ? 'ON' : 'OFF', null, null,
+    this.drawMenu(ctx, this.SETTINGS_ITEMS, VIEW_W / 2, 200, [
+      STYLES[s.style].name, SPEEDS[s.speed].name, LEVELS[s.level].toUpperCase(), ROUNDS[s.rounds], s.sound ? 'ON' : 'OFF', null, null,
     ]);
     const tips = [
+      STYLES[s.style].tip,
       'FAST is already quick. TURBO and HYPER speed the whole game up even more.',
       'How smart and aggressive the CPU plays.',
       'Rounds needed to win a match.',
@@ -668,7 +678,7 @@ const Game = {
       'Change the keyboard keys for Player 1 and Player 2.',
       '',
     ];
-    txt(ctx, tips[this.cursor], VIEW_W / 2, 560, 22, '#b3e5fc', 'center', 3, 700, 'sans-serif');
+    txt(ctx, tips[this.cursor], VIEW_W / 2, 610, 20, '#b3e5fc', 'center', 3, 700, 'sans-serif');
   },
 
   drawHowTo(ctx) {
@@ -861,7 +871,7 @@ const Game = {
 
   drawMoveList(ctx) {
     const m = this.match;
-    txt(ctx, 'MOVE LIST', VIEW_W / 2, 70, 56, '#ffd600');
+    txt(ctx, m.classic ? 'MOVE LIST — CLASSIC STYLE' : 'MOVE LIST', VIEW_W / 2, 70, 56, '#ffd600');
     m.f.forEach((f, p) => {
       const d = f.def;
       const x = p === 0 ? 120 : 690;
@@ -873,9 +883,10 @@ const Game = {
         ['↓ + Heavy', 'Sweep (low, knockdown)'], ['Air Heavy', 'Spike (overhead)'], ['↓ + Light', 'Low jab (low)'],
         ['Flow', 'Evade stance (1/4 meter)'], ['Hold back', 'Block (↓+back for lows)'],
       ];
+      if (m.classic) rows.push(['→/← + Heavy', 'Throw (up close; Heavy to break)']);
       rows.forEach(([k, v], i) => {
-        txt(ctx, k, x, 176 + i * 33, 19, '#80d8ff', 'left', 3, 700, 'sans-serif');
-        txt(ctx, v, x + 190, 176 + i * 33, 19, i === 4 ? '#ffd600' : '#fff', 'left', 3, 700, 'sans-serif');
+        txt(ctx, k, x, 176 + i * 31, 19, '#80d8ff', 'left', 3, 700, 'sans-serif');
+        txt(ctx, v, x + 190, 176 + i * 31, 19, i === 4 ? '#ffd600' : '#fff', 'left', 3, 700, 'sans-serif');
       });
       this.wrap(ctx, d.blurb, x, 580, 460, 17, '#b3e5fc');
     });

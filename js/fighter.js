@@ -14,6 +14,9 @@ class Fighter {
     this.side = side;
     this.input = input;
     this.g = g;
+    this.classic = !!g.classic;
+    this.stats = this.classic ? classicStats(def) : def.stats;
+    this.N = this.classic ? CLASSIC_NORMALS : NORMALS;
     this.meter = 0;
     this.wins = 0;
     this.moveSerial = 0;
@@ -22,7 +25,7 @@ class Fighter {
   }
 
   reset(x) {
-    const st = this.def.stats;
+    const st = this.stats;
     this.x = x;
     this.y = 0;
     this.vx = 0;
@@ -65,7 +68,7 @@ class Fighter {
     return (this.status.slow > 0 ? 0.6 : 1) * (this.status.speed > 0 ? 1.3 : 1);
   }
   pow() {
-    return this.def.stats.power * (this.status.power > 0 ? 1.2 : 1) * (this.adrenaline() ? ADRENALINE_POWER : 1);
+    return this.stats.power * (this.status.power > 0 ? 1.2 : 1) * (this.adrenaline() ? ADRENALINE_POWER : 1);
   }
   // Comeback mechanic: below 30% health you hit a little harder and build meter faster.
   adrenaline() {
@@ -120,7 +123,8 @@ class Fighter {
     if (this.state !== 'attack' || !m) return false;
     if (this.armorUsed) return false; // armor on a move absorbs one hit
     if (m.armor && this.mf >= m.armor[0] && this.mf <= m.armor[1]) return true;
-    return !!(this.def.heavyArmor && m.type === 'heavy' && this.mf <= m.startup + m.active);
+    // Granite's armored heavies (Fast style only; Classic has no armored normals)
+    return !!(this.def.heavyArmor && !this.classic && m.type === 'heavy' && this.mf <= m.startup + m.active);
   }
 
   faceOpp() {
@@ -158,7 +162,7 @@ class Fighter {
     else this.guard = Math.min(100, this.guard + 0.35);
 
     const inp = this.input;
-    const st = this.def.stats;
+    const st = this.stats;
     switch (this.state) {
       case 'idle':
       case 'walk':
@@ -190,7 +194,7 @@ class Fighter {
           if (this.tryAttack()) break;
         }
         if (t >= dur) {
-          if (!this.backDash && inp.held.D && inp.dirX() === this.dashDir) {
+          if (!this.backDash && !this.classic && inp.held.D && inp.dirX() === this.dashDir) {
             this.state = 'run';
             this.runDir = this.dashDir;
           } else this.state = 'idle';
@@ -249,6 +253,33 @@ class Fighter {
         }
         if (this.timer <= 0) this.state = 'idle';
         break;
+      case 'thrown': {
+        const t = this.thrower;
+        if (!t || t.state !== 'attack' || !t.move || t.move.type !== 'throw') {
+          this.state = 'idle';
+          this.thrower = null;
+          break;
+        }
+        this.timer--;
+        this.x = U.clamp(t.x + t.facing * 62 * t.def.size, this.g.stage.left, this.g.stage.right);
+        if (inp.pressed('H') && this.timer > 0) {
+          // throw tech: both fighters are pushed apart
+          inp.consume('H');
+          const dir = U.sign(this.x - t.x) || -t.facing;
+          this.state = 'land';
+          this.timer = 12;
+          this.thrower = null;
+          this.vx = dir * 9;
+          t.move = null;
+          t.state = 'land';
+          t.timer = 12;
+          t.vx = -dir * 9;
+          this.g.text('TECH!', (this.x + t.x) / 2, this.y - 210, '#80d8ff', 1.1);
+          SFX.play('block');
+          this.g.particle({ x: (this.x + t.x) / 2, y: this.y - 90, vx: 0, vy: 0, life: 12, size: 50, color: '#80d8ff', type: 'ring' });
+        }
+        break;
+      }
       case 'stunned':
         this.timer--;
         this.vx *= 0.8;
@@ -270,7 +301,7 @@ class Fighter {
 
   groundNeutral() {
     const inp = this.input;
-    const st = this.def.stats;
+    const st = this.stats;
     const dx = inp.dirX();
     const sp = this.spd();
     this.faceOpp();
@@ -294,7 +325,7 @@ class Fighter {
       this.vx *= 0.6;
       return;
     }
-    if (this.state === 'run' && inp.held.D && dx === this.runDir) {
+    if (this.state === 'run' && !this.classic && inp.held.D && dx === this.runDir) {
       this.vx = dx * st.run * sp;
       if (this.animT % 5 === 0) this.g.dust(this.x - dx * 20, 0, 1);
       return;
@@ -311,7 +342,7 @@ class Fighter {
 
   airNeutral() {
     const inp = this.input;
-    const st = this.def.stats;
+    const st = this.stats;
     const dx = inp.dirX();
     this.faceOpp();
     if (this.tryAttack()) return;
@@ -334,6 +365,7 @@ class Fighter {
       SFX.play('dash');
       return;
     }
+    if (this.classic) return; // classic: fixed jump arcs, no steering or fast-fall
     if (dx) this.vx += (dx * st.airSpeed * this.spd() - this.vx) * 0.18;
     if (inp.held.down && this.vy > -3) this.vy = Math.max(this.vy, st.fastFall);
   }
@@ -350,11 +382,12 @@ class Fighter {
 
   doJump(keepMomentum) {
     const inp = this.input;
-    const st = this.def.stats;
+    const st = this.stats;
     const dx = inp.dirX();
     this.vy = -st.jump;
     const air = st.airSpeed * this.spd();
-    if (keepMomentum || this.state === 'run') this.vx = dx ? dx * Math.max(air, Math.abs(this.vx) * 0.85) : this.vx * 0.6;
+    if (this.classic) this.vx = dx * air;
+    else if (keepMomentum || this.state === 'run') this.vx = dx ? dx * Math.max(air, Math.abs(this.vx) * 0.85) : this.vx * 0.6;
     else this.vx = dx * air;
     this.onGround = false;
     this.y = -1;
@@ -371,6 +404,7 @@ class Fighter {
       this.startSuper();
       return true;
     }
+    if (this.classic && !air && inp.pressed('H') && inp.dirX() !== 0 && !inp.held.up && !inp.held.down && this.tryThrow()) return true;
     if (inp.pressed('FL')) {
       inp.consume('FL');
       if (this.startFlow()) return true;
@@ -389,15 +423,41 @@ class Fighter {
     }
     if (inp.pressed('H')) {
       inp.consume('H');
-      this.startMove(air ? NORMALS.AH : inp.held.up ? NORMALS.UH : inp.held.down ? NORMALS.DH : NORMALS.H);
+      this.startMove(air ? this.N.AH : inp.held.up ? this.N.UH : inp.held.down ? this.N.DH : this.N.H);
       return true;
     }
     if (inp.pressed('L')) {
       inp.consume('L');
-      this.startMove(air ? NORMALS.AL : inp.held.down ? NORMALS.CL : NORMALS.L1);
+      this.startMove(air ? this.N.AL : inp.held.down ? this.N.CL : this.N.L1);
       return true;
     }
     return false;
+  }
+
+  // Classic throw: grabs the opponent if they're close, grounded and not
+  // already in hitstun/blockstun. Returns false when out of range (so the
+  // button does a normal Heavy instead).
+  tryThrow() {
+    const o = this.opp();
+    const g = this.g;
+    if (Math.abs(o.x - this.x) > CLASSIC.throwRange * ((this.def.size + o.def.size) / 2)) return false;
+    if (!o.onGround || o.isInvuln() || ['hit', 'down', 'getup', 'ko', 'thrown', 'block'].includes(o.state)) return false;
+    this.input.consume('H');
+    this.faceOpp();
+    this.startMove(THROW_MOVE);
+    this.throwTarget = o;
+    this.vx = 0;
+    o.move = null;
+    o.hidden = false;
+    o.state = 'thrown';
+    o.thrower = this;
+    o.timer = CLASSIC.throwTech;
+    o.vx = 0;
+    o.vy = 0;
+    o.x = U.clamp(this.x + this.facing * 62 * this.def.size, g.stage.left, g.stage.right);
+    SFX.play('hitL');
+    g.text('THROW', o.x, o.y - 200, '#ffd600', 0.9);
+    return true;
   }
 
   // Returns false (and flashes a warning) when there isn't enough meter.
@@ -444,9 +504,10 @@ class Fighter {
 
     if (this.mf > m.startup) {
       // light chains work even on whiff for fluid pressure
-      if (m.type === 'light' && m.chain && this.onGround && inp.pressed('L') && !inp.held.down) {
+      const chainOk = !this.classic || this.moveHit || this.moveBlocked;
+      if (m.type === 'light' && m.chain && chainOk && this.onGround && inp.pressed('L') && !inp.held.down) {
         inp.consume('L');
-        this.startMove(NORMALS[m.chain]);
+        this.startMove(this.N[m.chain]);
         return;
       }
       if (this.moveHit || this.moveBlocked) {
@@ -468,6 +529,10 @@ class Fighter {
 
   tryCancel(m) {
     const inp = this.input;
+    if (this.classic) {
+      // classic: normals cancel only into specials and supers
+      return (inp.pressed('S') || inp.pressed('SU')) && this.tryAttack();
+    }
     if (this.moveHit && (inp.pressed('up') || inp.pressed('jump'))) {
       if (this.onGround) {
         inp.consume('up');
@@ -504,7 +569,7 @@ class Fighter {
 
   // ------------------------------------------------------------ physics
   physics() {
-    const st = this.def.stats;
+    const st = this.stats;
     const m = this.move;
     const g = this.g;
     let grav = st.gravity;
@@ -544,7 +609,7 @@ class Fighter {
   }
 
   land(vy) {
-    const st = this.def.stats;
+    const st = this.stats;
     this.airJumps = st.airJumps;
     this.airDashes = st.airDash;
     if (vy > 8) this.g.dust(this.x, 0, 5);
@@ -645,7 +710,7 @@ class Fighter {
     }
 
     let dmg = hit.dmg * att.pow();
-    if (this.isArmored() && !hit.super) {
+    if (this.isArmored() && !hit.super && !hit.throw) {
       if (s.armor > 0) s.armor = Math.max(0, s.armor - 70);
       else this.armorUsed = true;
       dmg = Math.round(dmg * 0.7);
@@ -702,7 +767,7 @@ class Fighter {
     this.knockdown = !!hit.knockdown;
     this.bounced = false;
 
-    const w = Math.sqrt(this.def.stats.weight);
+    const w = Math.sqrt(this.stats.weight);
     const kx = (hit.kb[0] * dir) / w;
     const ky = hit.kb[1] / w;
     this.vx = kx;
@@ -911,6 +976,8 @@ class Fighter {
         return cp(this.vy < 0 ? POSES.jump : POSES.fall);
       case 'block':
         return cp(this.crouchBlock ? POSES.cblock : POSES.block);
+      case 'thrown':
+        return cp(POSES.hit);
       case 'hit':
         if (this.onGround) return cp(POSES.hit);
         {
