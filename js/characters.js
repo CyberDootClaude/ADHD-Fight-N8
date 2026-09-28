@@ -88,9 +88,9 @@ const ROSTER = [
     id: 'nivia', name: 'NIVIA', title: 'The Frost Queen', element: 'Ice', color: '#80deea', size: 1.0,
     blurb: 'Slows, freezes and walls you out. Patience is her weapon.',
     look: { skin: '#e8eaf6', primary: '#4dd0e1', secondary: '#e0f7fa', pants: '#006064', hair: '#e3f2fd', style: 'long', acc: 'crown', accColor: '#b2ebf2' },
-    stats: { hp: 940, walk: 7.6 },
+    stats: { hp: 920, walk: 7.6 },
     specials: {
-      N: SP.projectile({ name: 'Ice Shards', vis: 'shard', count: 3, spread: 2.6, speed: 17, w: 38, h: 16, cd: 28, color: '#e0f7fa', hit: { dmg: 24, stun: 16, kb: [5, -2], effect: slow() } }),
+      N: SP.projectile({ name: 'Ice Shards', vis: 'shard', count: 3, spread: 2.6, speed: 17, w: 38, h: 16, cd: 28, color: '#e0f7fa', hit: { dmg: 22, stun: 16, kb: [5, -2], effect: slow(100) } }),
       F: SP.rush({ name: 'Ice Slide', speed: 22, dur: 14, low: true, pose: POSES.slide, box: { x: 45, y: -40, w: 100, h: 60 }, hit: { dmg: 55, stun: 22, kb: [9, -6], effect: slow() } }),
       U: SP.pillar({ name: 'Ice Spike', vis: 'icepillar', delay: 22, w: 72, h: 260, cd: 50, hit: { dmg: 60, stun: 26, kb: [1, -16], effect: freeze(35) } }),
       D: SP.wall({ name: 'Ice Wall', vis: 'icewall', hp: 3, life: 330, cd: 110 }),
@@ -166,14 +166,14 @@ const ROSTER = [
     id: 'sahar', name: 'SAHAR', title: 'The Dune Walker', element: 'Sand', color: '#ffcc80', size: 1.0,
     blurb: 'Shotgun sand blasts, quicksand traps and a blinding storm.',
     look: { skin: '#c68642', primary: '#e0a96d', secondary: '#fff3e0', pants: '#795548', hair: '#3e2723', style: 'wrap', acc: 'scarf', accColor: '#fff3e0' },
-    stats: { hp: 1000, walk: 7.8 },
+    stats: { hp: 1020, walk: 7.8 },
     specials: {
       N: SP.projectile({ name: 'Sand Blast', vis: 'sand', count: 5, spread: 1.8, speed: 16, life: 28, w: 26, h: 20, cd: 24, sfx: 'whoosh', hit: { dmg: 15, stun: 13, kb: [4, -1] } }),
       F: SP.trap({ name: 'Quicksand', vis: 'quicksand', w: 170, h: 26, dist: 200, max: 1, cd: 55, explode: { w: 170, h: 90, life: 10 }, hit: { dmg: 20, stun: 45, kb: [0, 0], effect: slow(180) } }),
       U: SP.pillar({ name: 'Sand Spire', vis: 'sandpillar', delay: 20, w: 82, h: 250, cd: 45, hit: { dmg: 60, stun: 28, kb: [2, -16] } }),
       D: SP.buff({ name: 'Mirage', type: 'speed', dur: 300, cd: 480, label: 'SPEED UP' }),
     },
-    super: SUPER('aoe', { name: 'Desert Storm', vis: 'sandstorm', r: 600, h: 380, dur: 60, multi: 6, startup: 16, sfx: 'whoosh', hit: { dmg: 24, stun: 18, kb: [3, -4], effect: slow(180) } }),
+    super: SUPER('aoe', { name: 'Desert Storm', vis: 'sandstorm', r: 480, h: 340, dur: 52, multi: 6, startup: 18, sfx: 'whoosh', hit: { dmg: 23, stun: 18, kb: [3, -4], effect: slow(180) } }),
   }),
   C({
     id: 'magna', name: 'MAGNA', title: 'The Lava Brute', element: 'Magma', color: '#ff7043', size: 1.15,
