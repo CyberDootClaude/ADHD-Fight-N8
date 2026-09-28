@@ -55,7 +55,7 @@ Bindings are saved in your browser. The arrow keys, Enter and Esc always work in
 | Pause | Esc / Enter | Backspace | Start |
 | Reset position (practice) | R | Num5 | — |
 
-On phones and tablets, on-screen touch controls appear after your first tap.
+On phones and tablets, on-screen touch controls appear after your first tap; the ❚❚ button in the top-right corner pauses. In menus, a gamepad's **A** confirms, **B** goes back and **Y** picks a random character.
 
 ### Core mechanics
 - **Specials**: press Special by itself or with →, ↑ or ↓ for four different specials per character. They run on short cooldowns, not meter.

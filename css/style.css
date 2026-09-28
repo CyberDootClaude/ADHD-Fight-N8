@@ -28,8 +28,8 @@ body {
   justify-content: center;
   color: rgba(255, 255, 255, 0.85);
   font: 700 14px sans-serif;
-  background: rgba(255, 255, 255, 0.12);
-  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   touch-action: none;
 }
@@ -39,7 +39,8 @@ body {
 #touch .down { left: 78px; bottom: 18px; }
 #touch .left { left: 14px; bottom: 84px; }
 #touch .right { left: 142px; bottom: 84px; }
-#touch .ul, #touch .ur, #touch .dl, #touch .dr { opacity: 0.25; width: 50px !important; height: 50px !important; }
+/* diagonal hit areas: invisible, but still pressable */
+#touch .ul, #touch .ur, #touch .dl, #touch .dr { background: none; border: none; width: 50px !important; height: 50px !important; }
 #touch .ul { left: 18px; bottom: 154px; }
 #touch .ur { left: 146px; bottom: 154px; }
 #touch .dl { left: 18px; bottom: 22px; }
@@ -51,4 +52,4 @@ body {
 #touch .d { right: 14px; bottom: 30px; font-size: 11px; }
 #touch .su { right: 150px; bottom: 110px; font-size: 11px; background: rgba(255, 145, 0, 0.25); }
 #touch .fl { right: 80px; bottom: 170px; font-size: 11px; background: rgba(128, 216, 255, 0.25); }
-#touch .pause { top: 10px; left: 50%; transform: translateX(-50%); width: 44px; height: 44px; }
+#touch .pause { top: 8px; right: 8px; width: 40px; height: 40px; }
