@@ -119,6 +119,13 @@ const NORMALS = {
   }),
 };
 
+// Global balance knobs.
+const COMBO_SOFT_CAP = 0.33;   // fraction of max health after which combo damage is halved
+const ADRENALINE_HP = 0.3;     // below this fraction of health...
+const ADRENALINE_POWER = 1.12; // ...damage is multiplied by this
+const ADRENALINE_METER = 1.5;  // ...and meter gain by this
+const LOSER_METER_BONUS = 30;  // meter given to the loser of a round
+
 // Flow Stance: a separate button that auto-evades (or absorbs) whatever hits
 // during its window. Costs meter; whiffing it leaves a punishable recovery.
 const FLOW_COST = 25;
@@ -474,6 +481,7 @@ const SP = {
               owner: f, facing: f.facing, x: tx - vx * 28, y: -760, w: o.w ?? 60, h: o.h ?? 60,
               vx, vy: o.speed ?? 22, life: 90, hit: HIT(Object.assign({ special: true, super: !!o.superMove }, o.hit)),
               vis: o.vis || 'meteor', color: o.color || f.def.color, color2: o.color2, groundExplode: true, big: true,
+              srcName: o.name,
             });
             if (i % 2 === 0) SFX.play(o.sfx || 'whoosh');
           });

@@ -40,7 +40,7 @@ class Match {
   // ------------------------------------------------------------ api for fighters/moves
   addHazard(o) {
     const h = new Hazard(o);
-    h.srcName = o.owner && o.owner.move ? moveName(o.owner.move) : 'Projectile';
+    h.srcName = o.srcName || (o.owner && o.owner.move ? moveName(o.owner.move) : 'Projectile');
     this.hazards.push(h);
     return h;
   }
@@ -150,7 +150,11 @@ class Match {
       }
       if (this.phaseT === 100 && !w) this.announce('DRAW', '#ffffff', 80);
       if (this.phaseT >= 190) {
-        if (w) w.wins++;
+        if (w) {
+          w.wins++;
+          const loser = this.opp(w);
+          loser.meter = Math.min(100, loser.meter + LOSER_METER_BONUS);
+        }
         if (w && w.wins >= this.winsNeeded) {
           this.over = true;
           this.winner = w;
@@ -609,6 +613,15 @@ function drawHUD(ctx, m) {
     ctx.strokeText(nm, nx, y + BH + 34);
     ctx.fillStyle = '#fff';
     ctx.fillText(nm, nx, y + BH + 34);
+    if (f.adrenaline()) {
+      const ax = left ? nx + ctx.measureText(nm).width + 14 : nx - ctx.measureText(nm).width - 14;
+      ctx.font = "900 16px Impact, 'Arial Black', sans-serif";
+      ctx.globalAlpha = 0.6 + Math.max(0, Math.sin(t * 0.25)) * 0.4;
+      ctx.strokeText('ADRENALINE', ax, y + BH + 33);
+      ctx.fillStyle = '#ff1744';
+      ctx.fillText('ADRENALINE', ax, y + BH + 33);
+      ctx.globalAlpha = 1;
+    }
     // round wins
     for (let w = 0; w < m.winsNeeded; w++) {
       const cx = left ? VIEW_W / 2 - 70 - w * 22 : VIEW_W / 2 + 70 + w * 22;
