@@ -67,7 +67,9 @@ Bindings are saved in your browser. The arrow keys, Enter and Esc always work in
 | Pause | Esc / Enter | Backspace | Start |
 | Reset position (practice) | R | Num5 | — |
 
-On phones and tablets, on-screen touch controls appear after your first tap; the ❚❚ button in the top-right corner pauses. In menus, a gamepad's **A** confirms, **B** goes back and **Y** picks a random character.
+**Mouse:** every menu works with the mouse. Hover to highlight and click to select. Click the ◀ ▶ arrows (or anywhere on a setting) to change a value. The scroll wheel moves through menus and right-click goes back. Character select has **BACK** and **RANDOM** buttons, stage select has ◀ ▶ and **FIGHT!**, and during a fight a pause button appears under the timer when you move the mouse. On the Controls screen, click a key box to rebind it.
+
+On phones and tablets you can tap menu items directly, and on-screen touch controls appear after your first tap; the ❚❚ button in the top-right corner pauses. In menus, a gamepad's **A** confirms, **B** goes back and **Y** picks a random character.
 
 ### Core mechanics
 - **Specials**: press Special by itself or with →, ↑ or ↓ for four different specials per character. They run on short cooldowns, not meter.

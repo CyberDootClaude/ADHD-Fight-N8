@@ -49,6 +49,12 @@ const Game = {
   holds: [{}, {}, {}],
   cursor: 0,
   mode: 'cpu',
+  // Mouse support: screens register clickable areas while drawing ("hot"),
+  // and clicks / wheel turn into the same menu actions keys produce ("mouseQ").
+  hot: [],
+  mouseQ: {},
+  q: {},
+  mouse: { x: -1, y: -1, active: false, t: -999 },
 
   init() {
     this.canvas = document.getElementById('game');
@@ -68,8 +74,80 @@ const Game = {
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Backquote') this.debug = !this.debug;
     });
-    this.canvas.addEventListener('pointerdown', () => SFX.init());
+    this.initMouse();
     this.titleStage = U.randi(0, STAGES.length - 1);
+  },
+
+  initMouse() {
+    const c = this.canvas;
+    const toCanvas = (e) => {
+      const r = c.getBoundingClientRect();
+      return { x: ((e.clientX - r.left) * VIEW_W) / r.width, y: ((e.clientY - r.top) * VIEW_H) / r.height };
+    };
+    const find = (pt) => {
+      for (let i = this.hot.length - 1; i >= 0; i--) {
+        const h = this.hot[i];
+        if (pt.x >= h.x && pt.x <= h.x + h.w && pt.y >= h.y && pt.y <= h.y + h.h) return h;
+      }
+      return null;
+    };
+    c.addEventListener('pointermove', (e) => {
+      const pt = toCanvas(e);
+      const isMouse = e.pointerType === 'mouse';
+      this.mouse = { x: pt.x, y: pt.y, active: isMouse, t: this.t };
+      const h = find(pt);
+      if (h && h.hover && isMouse && h.hover() === true) SFX.play('select');
+      c.style.cursor = h ? 'pointer' : 'default';
+    });
+    c.addEventListener('pointerdown', (e) => {
+      SFX.init();
+      const pt = toCanvas(e);
+      this.mouse = { x: pt.x, y: pt.y, active: e.pointerType === 'mouse', t: this.t };
+      if (Keys.capture) {
+        // clicking while the Controls screen waits for a key cancels the rebind
+        Keys.capture('Escape');
+        return;
+      }
+      if (e.button === 2) {
+        this.mouseQ.back = true;
+        return;
+      }
+      if (e.button !== 0) return;
+      const h = find(pt);
+      if (!h) return;
+      if (h.hover) h.hover();
+      if (h.click) h.click(pt);
+    });
+    c.addEventListener('contextmenu', (e) => e.preventDefault());
+    c.addEventListener('wheel', (e) => {
+      if (this.scene === 'fight' && !this.paused) return;
+      e.preventDefault();
+      if (Math.abs(e.deltaY) < 1) return;
+      this.mouseQ[e.deltaY > 0 ? 'down' : 'up'] = true;
+    }, { passive: false });
+  },
+
+  // A clickable area for the current frame. hover() may return true when it
+  // changed the selection (plays a tick); click(pt) gets the canvas position.
+  hotspot(x, y, w, h, hover, click) {
+    this.hot.push({ x, y, w, h, hover, click });
+  },
+
+  mouseOver(x, y, w, h) {
+    const m = this.mouse;
+    return m.active && m.x >= x && m.x <= x + w && m.y >= y && m.y <= y + h;
+  },
+
+  // An on-screen button (for mouse and touch users).
+  button(ctx, label, x, y, w, h, onClick, size = 20) {
+    const over = this.mouseOver(x, y, w, h);
+    ctx.fillStyle = over ? 'rgba(255,214,0,0.28)' : 'rgba(0,0,0,0.55)';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = over ? '#ffd600' : 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+    txt(ctx, label, x + w / 2, y + h / 2 + size * 0.36, size, over ? '#ffd600' : '#ffffff', 'center', 3);
+    this.hotspot(x, y, w, h, null, onClick);
   },
 
   saveSettings() {
@@ -121,6 +199,10 @@ const Game = {
     if (Keys.isDown('Escape')) raw.esc = true;
     this.menuIn.update(raw);
     const n = this.nav(this.menuIn, this.holds[2]);
+    // mouse clicks / wheel become the same menu actions
+    this.q = this.mouseQ;
+    this.mouseQ = {};
+    for (const k of ['up', 'down', 'left', 'right', 'ok', 'back', 'rand']) if (this.q[k]) n[k] = true;
     if (Keys.capture) return; // waiting for a key on the Controls screen
     switch (this.scene) {
       case 'title': return this.updateTitle(n);
@@ -242,6 +324,7 @@ const Game = {
       for (let p = 0; p < 2; p++) {
         this.inputs[p].update(rawForPlayer(p, false));
         const nv = this.nav(this.inputs[p], this.holds[p]);
+        if ((this.q.player || 0) === p) for (const k of ['ok', 'back', 'rand']) if (this.q[k]) nv[k] = true;
         if (!s.locked[p]) {
           moveCur(p, nv);
           if (nv.ok || nv.rand) lock(p, nv.rand);
@@ -373,7 +456,7 @@ const Game = {
       }
       return;
     }
-    if (this.menuIn.edge.start || this.menuIn.edge.esc) {
+    if (this.menuIn.edge.start || this.menuIn.edge.esc || this.q.pause) {
       this.paused = true;
       this.pauseView = null;
       this.cursor = 0;
@@ -443,11 +526,24 @@ const Game = {
         ctx.fillRect(250, y - 29, 5, 38);
       }
       const col = sel ? '#69f0ae' : '#ffffff';
+      const select = () => {
+        const changed = this.pcursor !== i;
+        this.pcursor = i;
+        return changed;
+      };
       if (val == null) {
         txt(ctx, label, VIEW_W / 2, y, sel ? 26 : 24, col, 'center', 4);
+        this.hotspot(250, y - 29, 780, 38, select, () => (this.mouseQ.ok = true));
       } else {
         txt(ctx, label, 280, y, sel ? 24 : 22, col, 'left', 4);
-        txt(ctx, sel ? `◀  ${val}  ▶` : val, 1000, y, sel ? 24 : 22, sel ? '#ffd600' : '#e0e0e0', 'right', 4);
+        const shown = sel ? `◀  ${val}  ▶` : val;
+        txt(ctx, shown, 1000, y, sel ? 24 : 22, sel ? '#ffd600' : '#e0e0e0', 'right', 4);
+        this.hotspot(250, y - 29, 780, 38, select, () => (this.mouseQ.right = true));
+        if (sel) {
+          const w = ctx.measureText(shown).width;
+          const aw = ctx.measureText('◀ ').width;
+          this.hotspot(1000 - w - 10, y - 29, aw + 16, 38, select, () => (this.mouseQ.left = true));
+        }
       }
     });
     const tips = {
@@ -464,7 +560,7 @@ const Game = {
     };
     const k = PRACTICE_ROWS[cur] ? PRACTICE_ROWS[cur][1] : null;
     txt(ctx, k ? tips[k] : `Tip: press ${Keybinds.text(0, 'reset')} during practice to reset positions instantly.`, VIEW_W / 2, 682, 17, '#b3e5fc', 'center', 3, 700, 'sans-serif');
-    txt(ctx, '↑↓ choose   •   ←→ change   •   Esc: back', VIEW_W / 2, 710, 14, '#9e9e9e', 'center', 0, 700, 'sans-serif');
+    txt(ctx, '↑↓ choose   •   ←→ change (or click the value / ◀)   •   Esc or right-click: back', VIEW_W / 2, 710, 14, '#9e9e9e', 'center', 0, 700, 'sans-serif');
   },
 
   // ------------------------------------------------------------ key remapping
@@ -538,6 +634,11 @@ const Game = {
           ctx.fillRect(460, y - 26, 360, 34);
         }
         txt(ctx, label, VIEW_W / 2, y, 22, sel ? '#ffd600' : '#fff', 'center', 4);
+        this.hotspot(460, y - 26, 360, 34, () => {
+          const changed = c.row !== i;
+          c.row = i;
+          return changed;
+        }, () => (this.mouseQ.ok = true));
         return;
       }
       txt(ctx, label, 200, y, 20, sel ? '#ffd600' : '#cfd8dc', 'left', 4);
@@ -550,12 +651,18 @@ const Game = {
           ctx.lineWidth = 2;
           ctx.strokeRect(colX[p] - 140, y - 25, 280, 32);
         }
+        this.hotspot(colX[p] - 140, y - 25, 280, 32, () => {
+          const changed = c.row !== i || c.col !== p;
+          c.row = i;
+          c.col = p;
+          return changed;
+        }, () => (this.mouseQ.ok = true));
         const t = on && c.waiting ? 'PRESS A KEY…' : Keybinds.text(p, action);
         txt(ctx, t, colX[p], y, 20, t === '—' ? '#ff5252' : on ? '#ffffff' : '#e0e0e0', 'center', 3, 700, 'sans-serif');
       }
     });
     if (c.msgT > 0) txt(ctx, c.msg, VIEW_W / 2, 668, 18, '#b9f6ca', 'center', 3, 700, 'sans-serif');
-    const hint = c.waiting ? 'Press the new key, or Esc to cancel' : '↑↓ choose   •   ←→ switch player   •   F / Enter: change key   •   Esc: back';
+    const hint = c.waiting ? 'Press the new key, or Esc / click to cancel' : 'Click a key box (or ↑↓ ←→ and F / Enter) to change it   •   Esc or right-click: back';
     txt(ctx, hint, VIEW_W / 2, 702, 16, '#aaa', 'center', 3, 700, 'sans-serif');
   },
 
@@ -575,6 +682,7 @@ const Game = {
   // ------------------------------------------------------------ draw
   draw() {
     const ctx = this.ctx;
+    this.hot = [];
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, VIEW_W, VIEW_H);
     switch (this.scene) {
@@ -590,6 +698,10 @@ const Game = {
       case 'fight':
         this.match.draw(ctx);
         if (this.paused) this.drawPause(ctx);
+        else if (this.mouse.active && this.t - this.mouse.t < 180 && !Touch.active) {
+          // a pause button appears while the mouse is being used
+          this.button(ctx, '❚❚', VIEW_W / 2 - 22, 90, 44, 34, () => (this.mouseQ.pause = true), 18);
+        }
         break;
       case 'results': this.drawResults(ctx); break;
     }
@@ -619,8 +731,25 @@ const Game = {
         ctx.fillStyle = '#ffd600';
         ctx.fillRect(x - 260, yy - 38, 6, 50);
       }
-      const label = values && values[i] != null ? `${it}:  ◀ ${values[i]} ▶` : it;
+      const hasValue = values && values[i] != null;
+      const label = hasValue ? `${it}:  ◀ ${values[i]} ▶` : it;
       txt(ctx, label, x, yy, sel ? 38 : 32, sel ? '#ffd600' : '#ffffff', 'center', 5);
+      const select = () => {
+        const changed = this.cursor !== i;
+        this.cursor = i;
+        return changed;
+      };
+      // whole row: select it; click = confirm (or step a value forward)
+      this.hotspot(x - 260, yy - 38, 520, 50, select, () => (this.mouseQ[hasValue ? 'right' : 'ok'] = true));
+      if (hasValue) {
+        // the ◀ / ▶ arrows step the value back / forward
+        const w = ctx.measureText(label).width;
+        const x0 = x - w / 2;
+        const ax = x0 + ctx.measureText(`${it}:  `).width;
+        const aw = ctx.measureText('◀ ').width;
+        this.hotspot(ax - 10, yy - 38, aw + 14, 50, select, () => (this.mouseQ.left = true));
+        this.hotspot(x0 + w - aw - 4, yy - 38, aw + 14, 50, select, () => (this.mouseQ.right = true));
+      }
     });
   },
 
@@ -659,7 +788,7 @@ const Game = {
     txt(ctx, `ELEMENTAL ARENA BRAWLER  •  ${ROSTER.length} FIGHTERS  •  ${STYLES[this.settings.style].name} STYLE`, 0, 46, 22, '#80d8ff', 'center', 4, 700, 'sans-serif');
     ctx.restore();
     this.drawMenu(ctx, this.TITLE_ITEMS, VIEW_W / 2, 290);
-    txt(ctx, '↑↓ choose   •   F / Enter / Ⓧ confirm   •   ` toggles hitboxes', VIEW_W / 2, VIEW_H - 24, 18, '#ddd', 'center', 3, 700, 'sans-serif');
+    txt(ctx, '↑↓ or mouse to choose   •   F / Enter / click to confirm   •   ` toggles hitboxes', VIEW_W / 2, VIEW_H - 24, 18, '#ddd', 'center', 3, 700, 'sans-serif');
   },
 
   drawSettings(ctx) {
@@ -712,7 +841,9 @@ const Game = {
       'Blocking too much shatters your guard! Build meter by fighting, then unleash your SUPER when the bar flashes.',
     ];
     tips.forEach((l, i) => txt(ctx, l, VIEW_W / 2, 468 + i * 29, 16, i >= 4 && i <= 6 ? '#b3e5fc' : '#fff', 'center', 3, 700, 'sans-serif'));
-    txt(ctx, 'Change keys in Settings → Controls   •   Press any button to go back', VIEW_W / 2, VIEW_H - 18, 18, '#aaa', 'center', 3, 700, 'sans-serif');
+    txt(ctx, 'Change keys in Settings → Controls   •   Press any button or click to go back', VIEW_W / 2, VIEW_H - 18, 18, '#aaa', 'center', 3, 700, 'sans-serif');
+    this.hotspot(0, 0, VIEW_W, VIEW_H, null, () => (this.mouseQ.back = true));
+    this.button(ctx, '◀ BACK', 20, 16, 120, 40, () => (this.mouseQ.back = true));
   },
 
   drawSelect(ctx) {
@@ -811,6 +942,20 @@ const Game = {
       ctx.strokeStyle = U.rgba(def.color, 0.6);
       ctx.lineWidth = 2;
       ctx.strokeRect(cx, cy, cw, ch);
+      this.hotspot(cx, cy, cw, ch, () => {
+        const p = this.mousePlayer();
+        if (p < 0 || s.cur[p] === i) return false;
+        s.cur[p] = i;
+        return true;
+      }, () => {
+        const p = this.mousePlayer();
+        if (p >= 0) Object.assign(this.mouseQ, { ok: true, player: p });
+      });
+    });
+    this.button(ctx, '◀ BACK', 20, 16, 120, 40, () => (this.mouseQ.back = true));
+    this.button(ctx, 'RANDOM', VIEW_W - 140, 16, 120, 40, () => {
+      const p = this.mousePlayer();
+      if (p >= 0) Object.assign(this.mouseQ, { rand: true, player: p });
     });
     for (let p = 0; p < 2; p++) {
       const show = this.mode === 'vs' || p <= s.phase;
@@ -826,7 +971,15 @@ const Game = {
       ctx.fillRect(cx + (p ? cw - 34 : 0), cy, 34, 18);
       txt(ctx, p ? '2' : '1', cx + (p ? cw - 17 : 17), cy + 15, 16, '#fff', 'center', 0);
     }
-    txt(ctx, 'Move: arrows/WASD   •   Select: F / Enter   •   Random: H   •   Back: G / Esc', VIEW_W / 2, 488, 15, '#aaa', 'center', 3, 700, 'sans-serif');
+    txt(ctx, 'Move: arrows/WASD/mouse   •   Select: F / Enter / click   •   Random: H   •   Back: G / Esc / right-click', VIEW_W / 2, 488, 15, '#aaa', 'center', 3, 700, 'sans-serif');
+  },
+
+  // Which player the mouse picks for on the character select screen (-1: none).
+  mousePlayer() {
+    const s = this.sel;
+    if (!s || s.done) return -1;
+    if (this.mode === 'vs') return !s.locked[0] ? 0 : !s.locked[1] ? 1 : -1;
+    return s.locked[s.phase] ? -1 : s.phase;
   },
 
   wrap(ctx, text, x, y, maxW, size, color) {
@@ -853,9 +1006,13 @@ const Game = {
     drawFigure(ctx, defs[1], POSES.idle, 900, GROUND_Y, -1, 1.3, { t });
     txt(ctx, 'CHOOSE STAGE', VIEW_W / 2, 90, 44, '#ffd600');
     const bob = Math.sin(t * 0.15) * 6;
-    txt(ctx, `◀   ${STAGES[this.stageIdx].name.toUpperCase()}   ▶`, VIEW_W / 2 + 0 * bob, 180, 58, '#ffffff', 'center', 7);
+    txt(ctx, STAGES[this.stageIdx].name.toUpperCase(), VIEW_W / 2, 180, 58, '#ffffff', 'center', 7);
+    this.button(ctx, '◀', 250, 132, 70, 64, () => (this.mouseQ.left = true), 36);
+    this.button(ctx, '▶', VIEW_W - 320, 132, 70, 64, () => (this.mouseQ.right = true), 36);
     txt(ctx, `${defs[0].name}  vs  ${defs[1].name}`, VIEW_W / 2, 240, 30, '#ffffff', 'center', 5);
-    txt(ctx, 'F / Enter to FIGHT', VIEW_W / 2, 300 + bob, 26, '#ffd600', 'center', 4);
+    this.button(ctx, 'FIGHT!', VIEW_W / 2 - 110, 272 + bob, 220, 56, () => (this.mouseQ.ok = true), 34);
+    txt(ctx, 'F / Enter / click FIGHT!   •   ← → or ◀ ▶ to change stage', VIEW_W / 2, 360, 18, '#ddd', 'center', 3, 700, 'sans-serif');
+    this.button(ctx, '◀ BACK', 20, 16, 120, 40, () => (this.mouseQ.back = true));
   },
 
   drawPause(ctx) {
@@ -890,7 +1047,8 @@ const Game = {
       });
       this.wrap(ctx, d.blurb, x, 580, 460, 17, '#b3e5fc');
     });
-    txt(ctx, 'Press any button', VIEW_W / 2, VIEW_H - 30, 20, '#aaa', 'center', 3, 700, 'sans-serif');
+    txt(ctx, 'Press any button or click to close', VIEW_W / 2, VIEW_H - 30, 20, '#aaa', 'center', 3, 700, 'sans-serif');
+    this.hotspot(0, 0, VIEW_W, VIEW_H, null, () => (this.mouseQ.ok = true));
   },
 
   drawResults(ctx) {
@@ -910,6 +1068,11 @@ const Game = {
       this.RESULT_ITEMS.forEach((it, i) => {
         const sel = i === this.cursor;
         txt(ctx, it, 200, 520 + i * 48, sel ? 34 : 28, sel ? '#ffd600' : '#fff', 'center', 5);
+        this.hotspot(40, 520 + i * 48 - 36, 320, 46, () => {
+          const changed = this.cursor !== i;
+          this.cursor = i;
+          return changed;
+        }, () => (this.mouseQ.ok = true));
       });
     }
   },
