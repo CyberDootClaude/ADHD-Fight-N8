@@ -24,6 +24,7 @@ class Match {
     ];
     this.hazards = [];
     this.particles = [];
+    this.perfectRounds = [0, 0];
     this.ghosts = [];
     this.timers = [];
     this.cam = { x: this.stage.width / 2, y: 0, zoom: 1 };
@@ -153,6 +154,7 @@ class Match {
           w.winT = w.animT;
         }
         this.announce(`${w.def.name} WINS`, w.def.color, 80, w.hp >= w.maxHp ? 'PERFECT!' : '');
+        if (w.hp >= w.maxHp) this.perfectRounds[w.side]++;
       }
       if (this.phaseT === 100 && !w) this.announce('DRAW', '#ffffff', 80);
       if (this.phaseT >= 190) {

@@ -31,10 +31,20 @@ for (const classic of [false, true]) {
         out.push([ROSTER[i].id, m.over, null]);
       } catch (e) { out.push([ROSTER[i].id, false, String(e.stack || e)]); }
     }
+    // the arcade boss against a few fighters, at its own CPU level
+    for (let i = 0; i < 16; i += 5) {
+      try {
+        const m = new Match({ defs: [ROSTER[i], ARCADE_BOSS], stage: 3, inputs: [new PlayerInput(), new PlayerInput()],
+          ai: [new AIController('hard'), new AIController('boss')], winsNeeded: 2, classic: ${classic} });
+        let n = 0;
+        while (!m.over && n < 60 * 60 * 8) { if (n % 600 === 0) m.f.forEach((f) => (f.meter = 100)); m.tick(); n++; }
+        out.push(['boss vs ' + ROSTER[i].id, m.over, null]);
+      } catch (e) { out.push(['boss vs ' + ROSTER[i].id, false, String(e.stack || e)]); }
+    }
     return out;
   })()`);
   const bad = res.filter(([, over]) => !over);
-  check(`${classic ? 'Classic' : 'Fast'}: all 16 fighters finish full matches`, bad.length === 0, bad.map((b) => `${b[0]}: ${b[2] || 'did not finish'}`).join('; '));
+  check(`${classic ? 'Classic' : 'Fast'}: all 16 fighters and the arcade boss finish full matches`, bad.length === 0, bad.map((b) => `${b[0]}: ${b[2] || 'did not finish'}`).join('; '));
 }
 
 // 2. practice mode with every dummy action x guard (and a counterattack)

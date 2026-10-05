@@ -18,6 +18,9 @@ function loadGame() {
     vm.runInContext(fs.readFileSync(file, 'utf8'), ctx, { filename: file });
   }
   vm.runInContext('var Game = { debug: false };', ctx);
+  // arcade.js adds scenes to Game and defines the boss, so it loads after the stub
+  const arcade = path.join(__dirname, '..', 'js', 'arcade.js');
+  vm.runInContext(fs.readFileSync(arcade, 'utf8'), ctx, { filename: arcade });
   return (code) => vm.runInContext(code, ctx);
 }
 
