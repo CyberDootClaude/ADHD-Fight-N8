@@ -75,6 +75,9 @@ class Match {
     this.phaseT = 0;
     this.slowmo = 60;
     this.koWinner = att === f ? this.opp(f) : att;
+    this.koVictim = f;
+    this.flash = 10;
+    this.flashColor = '#ffffff';
     this.inputLocked = true;
     this.announce('K.O.', '#ff1744', 90);
     SFX.play('ko');
@@ -104,6 +107,7 @@ class Match {
     this.flash = 0;
     this.cam.x = mid;
     this.cam.zoom = 1;
+    this.koVictim = null;
     if (this.practice) {
       this.phase = 'fight';
       this.inputLocked = false;
@@ -146,6 +150,7 @@ class Match {
         if (w.state !== 'ko' && w.onGround) {
           w.state = 'victory';
           w.move = null;
+          w.winT = w.animT;
         }
         this.announce(`${w.def.name} WINS`, w.def.color, 80, w.hp >= w.maxHp ? 'PERFECT!' : '');
       }
@@ -329,6 +334,7 @@ class Match {
       p.x += p.vx;
       p.y += p.vy;
       p.vy += p.grav;
+      if (p.spin) p.rot += p.spin;
       p.vx *= p.drag;
       p.vy *= p.drag;
       p.life--;
@@ -457,13 +463,32 @@ class Match {
     const [a, b] = this.f;
     const mid = (a.x + b.x) / 2;
     const dist = Math.abs(a.x - b.x);
-    const tz = U.clamp(1150 / (dist + 520), 0.6, 1.05);
+    let tz = U.clamp(1150 / (dist + 520), 0.6, 1.05);
+    let tx = mid;
+    let top = Math.min(a.y, b.y);
+    let ty = top < -260 ? (top + 260) * 0.7 : 0;
+    let k = 0.08;
+    // K.O. camera: punch in on the knockout, then on the winner's victory pose
+    const w = this.koWinner;
+    if (this.phase === 'ko' && !this.practice && (this.koVictim || (w && this.phaseT >= 100))) {
+      if (this.phaseT < 100 && this.koVictim) {
+        const v = this.koVictim;
+        tz = 1.55;
+        tx = U.lerp(v.x, w ? w.x : v.x, 0.25);
+        top = v.y;
+        ty = top < -200 ? (top + 200) * 0.8 + 50 : 50;
+        k = 0.12;
+      } else if (w) {
+        tz = 1.4;
+        tx = w.x;
+        ty = 60;
+        k = 0.06;
+      }
+    }
     const c = this.cam;
-    c.zoom = U.lerp(c.zoom, tz, 0.08);
+    c.zoom = U.lerp(c.zoom, tz, k);
     const half = VIEW_W / 2 / c.zoom;
-    c.x = U.clamp(U.lerp(c.x, mid, 0.25), half, this.stage.width - half);
-    const top = Math.min(a.y, b.y);
-    const ty = top < -260 ? (top + 260) * 0.7 : 0;
+    c.x = U.clamp(U.lerp(c.x, tx, 0.25), half, this.stage.width - half);
     c.y = U.lerp(c.y, ty, 0.1);
   }
 

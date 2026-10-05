@@ -289,8 +289,15 @@ class Fighter {
           this.guard = 100;
         }
         break;
-      case 'ko':
       case 'victory':
+        // a little elemental aura while posing
+        if (this.animT % 6 === 0) {
+          const st = SPARK_STYLE[this.def.element] || {};
+          const type = ['bolt', 'slash', 'ring', 'arc', 'note'].includes(st.type) ? 'star' : st.type || 'dot';
+          this.g.particle({ x: this.x + U.rand(-50, 50), y: this.y - U.rand(10, 170) * this.def.size, vx: U.rand(-0.6, 0.6), vy: U.rand(-2.2, -0.8), life: 30, size: U.rand(3, 6), color: U.pick([this.def.color, st.alt || '#fff']), type, grav: 0, drag: 0.98, rot: U.rand(0, 6), spin: 0.05 });
+        }
+      // falls through
+      case 'ko':
       case 'intro':
         this.vx *= this.onGround ? 0.85 : 1;
         break;
@@ -793,11 +800,7 @@ class Fighter {
 
     const big = dmg >= 55 || hit.super;
     SFX.play(big ? 'hitH' : 'hitL');
-    const col = att.def.color;
-    for (let i = 0; i < (big ? 14 : 8); i++) {
-      g.particle({ x: cx, y: cy + U.rand(-15, 15), vx: dir * U.rand(2, 10) + U.rand(-2, 2), vy: U.rand(-6, 4), life: U.randi(10, 20), size: U.rand(3, 6), color: i % 2 ? '#ffffff' : col, type: 'spark' });
-    }
-    g.particle({ x: cx, y: cy, vx: 0, vy: 0, life: 10, size: big ? 60 : 36, color: '#ffffff', type: 'ring' });
+    hitSpark(g, att.def, cx, cy, dir, big);
     g.shake = Math.max(g.shake, big ? 9 : 4);
 
     if (this.hp <= 0 && g.noKO) this.hp = 1;
@@ -999,11 +1002,8 @@ class Fighter {
         p.lean += Math.sin(t * 0.15) * 10;
         return p;
       }
-      case 'victory': {
-        const p = cp(POSES.victory);
-        p.fa[0] += Math.sin(t * 0.2) * 8;
-        return p;
-      }
+      case 'victory':
+        return victoryPose(this.def, this.animT - (this.winT || 0));
       case 'attack': {
         if (!m || !m.pose) return cp(POSES.idle);
         if (this.mf <= m.startup) return cp(m.pose.wind);

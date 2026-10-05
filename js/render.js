@@ -1046,6 +1046,106 @@ function drawParticle(ctx, p) {
       ctx.fillRect(p.x - p.size, p.y - 1.5, p.size * 2, 3);
       ctx.fillRect(p.x - 1.5, p.y - p.size, 3, p.size * 2);
       break;
+    case 'flame':
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (0.4 + a * 0.8), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+      break;
+    case 'flare':
+      ctx.globalCompositeOperation = 'lighter';
+      glow(ctx, p.x, p.y, p.size * (1.6 - a * 0.6), p.color, a * 0.9);
+      ctx.globalCompositeOperation = 'source-over';
+      break;
+    case 'drop': {
+      const ang = Math.atan2(p.vy, p.vx);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, p.size * 1.3, p.size * 0.7, ang, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'rock':
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot || 0);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.moveTo(-p.size, -p.size * 0.6);
+      ctx.lineTo(p.size * 0.4, -p.size);
+      ctx.lineTo(p.size, p.size * 0.3);
+      ctx.lineTo(-p.size * 0.3, p.size);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      break;
+    case 'shard': {
+      const ang = Math.atan2(p.vy, p.vx);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(ang);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.moveTo(p.size * 2.2, 0);
+      ctx.lineTo(-p.size, -p.size * 0.6);
+      ctx.lineTo(-p.size * 0.6, p.size * 0.6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+      break;
+    }
+    case 'leaf':
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot || 0);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, p.size * 1.4, p.size * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      break;
+    case 'bolt': {
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      let bx = p.x, by = p.y;
+      const ang = Math.atan2(p.vy, p.vx);
+      for (let k = 1; k <= 4; k++) {
+        bx += Math.cos(ang) * p.size / 4 + U.rand(-8, 8);
+        by += Math.sin(ang) * p.size / 4 + U.rand(-8, 8);
+        ctx.lineTo(bx, by);
+      }
+      ctx.stroke();
+      break;
+    }
+    case 'slash':
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot || 0);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.moveTo(-p.size, 0);
+      ctx.quadraticCurveTo(0, -p.size * 0.18 * a, p.size, 0);
+      ctx.quadraticCurveTo(0, p.size * 0.05, -p.size, 0);
+      ctx.fill();
+      ctx.restore();
+      break;
+    case 'arc':
+      ctx.strokeStyle = p.color;
+      ctx.lineWidth = 3 * a + 1;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (1.3 - a * 0.5), Math.atan2(p.vy, p.vx) - 0.9, Math.atan2(p.vy, p.vx) + 0.9);
+      ctx.stroke();
+      break;
+    case 'note':
+      ctx.font = `900 ${Math.round(p.size)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = p.color;
+      ctx.fillText(p.size > 23 ? '♫' : '♪', p.x, p.y);
+      break;
     case 'dust':
       ctx.fillStyle = p.color;
       ctx.beginPath();

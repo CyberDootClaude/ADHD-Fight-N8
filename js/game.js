@@ -42,7 +42,7 @@ const Game = {
   scene: 'title',
   t: 0,
   debug: /debug/.test(location.search),
-  settings: { style: 0, speed: 0, level: 1, rounds: 1, sound: true },
+  settings: { style: 0, speed: 0, level: 1, rounds: 1, sound: true, music: true },
   practice: { dummy: 0, guard: 0, reversal: 0, health: 0, meter: 0, cooldowns: 1, position: 0, hitboxes: 0, inputs: 1, data: 1 },
   menuIn: new PlayerInput(),
   inputs: [new PlayerInput(), new PlayerInput()],
@@ -69,6 +69,7 @@ const Game = {
       if (!Number.isInteger(v) || v < 0 || v >= opts.length) this.practice[key] = 0;
     }
     SFX.enabled = this.settings.sound;
+    Music.enabled = this.settings.music !== false;
     Keys.init();
     Touch.init();
     window.addEventListener('keydown', (e) => {
@@ -176,6 +177,13 @@ const Game = {
     return r;
   },
 
+  updateMusic() {
+    const fight = this.scene === 'fight' && this.match;
+    Music.play(fight ? this.match.opts.stage % STAGES.length : 'menu');
+    const duck = fight && (this.paused || this.match.over) ? 0.35 : 1;
+    if (duck !== Music.duck) Music.setDuck(duck);
+  },
+
   go(scene) {
     this.scene = scene;
     this.cursor = 0;
@@ -186,6 +194,7 @@ const Game = {
   update() {
     this.t++;
     this.sceneT = (this.sceneT || 0) + 1;
+    this.updateMusic();
     const raw = rawForPlayer(0, true, true);
     // Arrow keys, Enter and Escape always work in menus, whatever the key bindings are.
     const inMenu = this.scene !== 'fight' || this.paused;
@@ -251,7 +260,7 @@ const Game = {
     else this.go('howto');
   },
 
-  SETTINGS_ITEMS: ['GAME STYLE', 'GAME SPEED', 'CPU LEVEL', 'ROUNDS TO WIN', 'SOUND', 'CONTROLS', 'BACK'],
+  SETTINGS_ITEMS: ['GAME STYLE', 'GAME SPEED', 'CPU LEVEL', 'ROUNDS TO WIN', 'SOUND', 'MUSIC', 'CONTROLS', 'BACK'],
 
   updateSettings(n) {
     const items = this.SETTINGS_ITEMS;
@@ -268,6 +277,10 @@ const Game = {
       if (item === 'SOUND') {
         s.sound = !s.sound;
         SFX.enabled = s.sound;
+      }
+      if (item === 'MUSIC') {
+        s.music = !s.music;
+        Music.setEnabled(s.music);
       }
       this.saveSettings();
     }
@@ -468,6 +481,7 @@ const Game = {
     if (m.over) {
       this.go('results');
       this.resultsWinner = m.winner;
+      this.resultsQuote = U.pick(m.winner.def.win.quotes);
     }
   },
 
@@ -796,7 +810,7 @@ const Game = {
     txt(ctx, 'SETTINGS', VIEW_W / 2, 110, 72, '#ffd600');
     const s = this.settings;
     this.drawMenu(ctx, this.SETTINGS_ITEMS, VIEW_W / 2, 200, [
-      STYLES[s.style].name, SPEEDS[s.speed].name, LEVELS[s.level].toUpperCase(), ROUNDS[s.rounds], s.sound ? 'ON' : 'OFF', null, null,
+      STYLES[s.style].name, SPEEDS[s.speed].name, LEVELS[s.level].toUpperCase(), ROUNDS[s.rounds], s.sound ? 'ON' : 'OFF', s.music ? 'ON' : 'OFF', null, null,
     ]);
     const tips = [
       STYLES[s.style].tip,
@@ -804,6 +818,7 @@ const Game = {
       'How smart and aggressive the CPU plays.',
       'Rounds needed to win a match.',
       'Sound effects on or off.',
+      'Background music on or off. Every stage has its own track.',
       'Change the keyboard keys for Player 1 and Player 2.',
       '',
     ];
@@ -876,10 +891,12 @@ const Game = {
       const fx = p === 0 ? 190 : VIEW_W - 190;
       // pedestal glow
       glow(ctx, fx, 440, 170, def.color, 0.35);
-      const pose = JSON.parse(JSON.stringify(s.locked[p] ? POSES.victory : POSES.idle));
       const b = Math.sin(t * 0.1);
-      pose.lean += b * 2;
-      pose.fa[0] += s.locked[p] ? Math.sin(t * 0.2) * 8 : b * 5;
+      const pose = s.locked[p] ? victoryPose(def, t) : JSON.parse(JSON.stringify(POSES.idle));
+      if (!s.locked[p]) {
+        pose.lean += b * 2;
+        pose.fa[0] += b * 5;
+      }
       drawFigure(ctx, def, pose, fx, 450, p === 0 ? 1 : -1, 2.0 / def.size * (0.85 + def.size * 0.15), { t });
       txt(ctx, labels[p], fx, 480, 26, pcol[p], 'center', 4);
       // info panel
@@ -1057,13 +1074,30 @@ const Game = {
     const t = this.t;
     this.drawBackdrop(ctx, m.opts.stage, 0.35);
     glow(ctx, VIEW_W / 2, GROUND_Y - 150, 300, w.def.color, 0.4);
-    const pose = JSON.parse(JSON.stringify(POSES.victory));
-    pose.fa[0] += Math.sin(t * 0.2) * 8;
+    const pose = victoryPose(w.def, this.sceneT);
     drawFigure(ctx, w.def, pose, VIEW_W / 2, GROUND_Y, 1, 2.1 / w.def.size * (0.85 + w.def.size * 0.15), { t });
     const who = this.mode === 'vs' ? `PLAYER ${w.side + 1}` : this.mode === 'watch' ? `CPU ${w.side + 1}` : w.side === 0 ? 'YOU WIN!' : 'CPU WINS';
     txt(ctx, `${w.def.name} WINS!`, VIEW_W / 2, 100, 84, w.def.color, 'center', 8);
     txt(ctx, who, VIEW_W / 2, 150, 34, '#fff', 'center', 5);
     txt(ctx, `${m.f[0].wins} - ${m.f[1].wins}`, VIEW_W / 2, 196, 32, '#ffd600', 'center', 5);
+    if (this.resultsQuote && this.sceneT >= 20) {
+      // speech bubble with the winner's quote
+      const bx = 850;
+      const by = 330;
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.strokeStyle = w.def.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(bx, by, 380, 110, 16);
+      else ctx.rect(bx, by, 380, 110);
+      ctx.moveTo(bx + 10, by + 70);
+      ctx.lineTo(bx - 40, by + 100);
+      ctx.lineTo(bx + 10, by + 90);
+      ctx.fill();
+      ctx.stroke();
+      const shown = this.resultsQuote.slice(0, Math.floor((this.sceneT - 20) * 1.5));
+      this.wrap(ctx, `“${shown}${shown.length === this.resultsQuote.length ? '”' : ''}`, bx + 20, by + 40, 340, 24, '#ffffff');
+    }
     if (this.sceneT >= 30) {
       this.RESULT_ITEMS.forEach((it, i) => {
         const sel = i === this.cursor;

@@ -85,7 +85,8 @@ async function controls(b) {
   const { ctx, p } = await open(b);
   for (let i = 0; i < 4; i++) await p.key('ArrowDown');
   await p.key('Enter');
-  for (let i = 0; i < 5; i++) await p.key('ArrowDown');
+  const ctlRow = await p.ev(() => Game.SETTINGS_ITEMS.indexOf('CONTROLS'));
+  for (let i = 0; i < ctlRow; i++) await p.key('ArrowDown');
   await p.key('Enter');
   check('Controls: Settings → Controls opens', await p.ev(() => Game.scene) === 'controls');
   for (let i = 0; i < 4; i++) await p.key('ArrowDown');
@@ -184,6 +185,63 @@ async function mechanics(b) {
   await ctx.close();
 }
 
+// ---- hit sparks, KO camera, victory poses, win quotes, music ----
+async function polish(b) {
+  const { ctx, p } = await open(b);
+  // any key press unlocks audio, like a real player's first input
+  await p.key('ArrowDown'); await p.key('ArrowUp');
+  const r = await p.ev(async () => {
+    const out = {};
+    out.menuTrack = Music.want;
+    out.audio = !!SFX.ctx;
+    // every element's hit spark spawns and draws without errors
+    Game.settings.style = 0; Game.mode = 'cpu'; Game.lastPicks = [0, 1]; Game.stageIdx = 2; Game.startMatch();
+    Game.update();
+    out.fightTrack = Music.want;
+    const m = Game.match;
+    const types = new Set();
+    for (const d of ROSTER) { const n = m.particles.length; hitSpark(m, d, 500, -100, 1, true); m.particles.slice(n).forEach((q) => types.add(q.type)); }
+    Game.draw();
+    out.sparkTypes = types.size;
+    // KO: the camera zooms in, then the winner strikes their own pose
+    m.phase = 'fight'; m.inputLocked = false;
+    m.f[0].x = 900; m.f[1].x = 1000; m.f[1].hp = 1;
+    m.f[1].takeHit(HIT({ dmg: 80 }), m.f[0], m.f[0].x, 1, null);
+    for (let i = 0; i < 90; i++) m.tick();
+    out.koZoom = m.cam.zoom;
+    for (let i = 0; i < 40; i++) m.tick();
+    out.winnerState = m.f[0].state;
+    const poses = new Set(ROSTER.map((d) => JSON.stringify(victoryPose(d, 30))));
+    out.poseKinds = poses.size;
+    out.quotes = ROSTER.every((d) => d.win && d.win.quotes.length >= 3);
+    // results screen shows a quote
+    m.over = true; m.winner = m.f[0];
+    Game.update();
+    out.scene = Game.scene;
+    out.quote = Game.resultsQuote;
+    Game.update(); Game.sceneT = 200; Game.draw();
+    out.backToMenu = Music.want;
+    // music toggle in settings
+    Game.go('settings'); Game.cursor = Game.SETTINGS_ITEMS.indexOf('MUSIC');
+    return out;
+  });
+  await p.key('Enter');
+  const off = await p.ev(() => [Game.settings.music, Music.enabled, Music.track]);
+  await p.key('Enter');
+  const on = await p.ev(() => [Game.settings.music, Music.enabled]);
+  check('Music: menu track on the title screen', r.menuTrack === 'menu', r.menuTrack);
+  check('Music: each stage plays its own track', r.fightTrack === 2, r.fightTrack);
+  check('Music: results go back to the menu track', r.backToMenu === 'menu', r.backToMenu);
+  check('Music: Settings → MUSIC turns it off and on', off[0] === false && off[1] === false && off[2] === null && on[0] === true && on[1] === true, JSON.stringify([off, on]));
+  check('Hit sparks: elements look different', r.sparkTypes >= 12, `${r.sparkTypes} particle types`);
+  check('KO: the camera zooms in', r.koZoom > 1.3, r.koZoom.toFixed(2));
+  check('KO: the winner strikes a victory pose', r.winnerState === 'victory', r.winnerState);
+  check('Victory poses: characters have different poses', r.poseKinds >= 10, `${r.poseKinds} distinct`);
+  check('Win quotes: every fighter has quotes, results show one', r.quotes && r.scene === 'results' && typeof r.quote === 'string' && r.quote.length > 3, r.quote);
+  noErrors('Polish', p);
+  await ctx.close();
+}
+
 // ---- touch (phone in landscape) ----
 async function touch(b) {
   const { ctx, p } = await open(b, { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
@@ -278,7 +336,7 @@ async function mouse(b) {
 (async () => {
   const browser = await chromium.launch();
   try {
-    for (const t of [cpuMatches, practice, controls, mechanics, touch, gamepad, mouse]) {
+    for (const t of [cpuMatches, practice, controls, mechanics, polish, touch, gamepad, mouse]) {
       try { await t(browser); } catch (e) { check(`${t.name}: ran to the end`, false, String(e.stack || e).split('\n').slice(0, 3).join(' ')); }
     }
   } finally { await browser.close(); }

@@ -131,3 +131,203 @@ const SFX = {
     }
   },
 };
+
+// ------------------------------------------------------------------ music
+// Procedural background music: every track is generated from a small recipe
+// (tempo, key, scale, chord progression, drum pattern) and a seed, then played
+// by a look-ahead scheduler on the same WebAudio context as the sound effects.
+const midiHz = (n) => 440 * Math.pow(2, (n - 69) / 12);
+const SCALES = {
+  minor: [0, 2, 3, 5, 7, 8, 10],
+  dorian: [0, 2, 3, 5, 7, 9, 10],
+  phrygian: [0, 1, 3, 5, 7, 8, 10],
+  major: [0, 2, 4, 5, 7, 9, 11],
+  pent: [0, 3, 5, 7, 10, 12, 15],
+  hira: [0, 2, 3, 7, 8, 12, 14],
+};
+
+// x = hit, - = rest; 16 steps per bar
+const MUSIC_TRACKS = {
+  menu: { bpm: 118, root: 45, scale: 'dorian', prog: [0, 5, 3, 4], seed: 7, lead: 'triangle', bass: 'triangle',
+    kick: 'x-------x-------', snare: '----x-------x---', hat: '--x---x---x---x-', bassRhythm: 'x--x--x---x--x--', leadDensity: 0.35, pad: 0.05 },
+  // Sky Temple: airy, pentatonic, swinging
+  0: { bpm: 150, root: 50, scale: 'pent', prog: [0, 3, 4, 2], seed: 11, lead: 'triangle', bass: 'square',
+    kick: 'x-----x---x-----', snare: '----x-------x---', hat: 'x-xxx-xxx-xxx-xx', bassRhythm: 'x--x--x-x--x--x-', leadDensity: 0.55, pad: 0.045 },
+  // Frozen Lake: cold minor, bell-like lead
+  1: { bpm: 140, root: 47, scale: 'minor', prog: [0, 5, 2, 6], seed: 23, lead: 'sine', bass: 'sawtooth',
+    kick: 'x-------x-x-----', snare: '----x-------x--x', hat: 'x-x-x-x-x-x-x-x-', bassRhythm: 'x-x---x-x-x---x-', leadDensity: 0.5, pad: 0.06, bell: true },
+  // Magma Forge: heavy phrygian, driving
+  2: { bpm: 164, root: 40, scale: 'phrygian', prog: [0, 1, 0, 6], seed: 31, lead: 'sawtooth', bass: 'sawtooth',
+    kick: 'x-x---x-x-x---x-', snare: '----x-------x---', hat: 'xxxxxxxxxxxxxxxx', bassRhythm: 'xxx-xxx-xxx-xx-x', leadDensity: 0.45, pad: 0.035 },
+  // Neon City: synthwave
+  3: { bpm: 156, root: 45, scale: 'minor', prog: [0, 5, 2, 6], seed: 47, lead: 'square', bass: 'sawtooth',
+    kick: 'x---x---x---x---', snare: '----x-------x---', hat: '--x---x---x---xx', bassRhythm: 'x-xxx-xxx-xxx-xx', leadDensity: 0.6, pad: 0.05 },
+  // Bamboo Grove: hirajoshi, plucky
+  4: { bpm: 144, root: 52, scale: 'hira', prog: [0, 3, 0, 4], seed: 59, lead: 'triangle', bass: 'triangle',
+    kick: 'x-----x-x-------', snare: '----x--x----x---', hat: 'x--x--x-x--x--x-', bassRhythm: 'x---x-x-x---x-x-', leadDensity: 0.5, pad: 0.04, pluck: true },
+};
+
+const Music = {
+  enabled: true,
+  track: null,
+  want: null,
+  gain: null,
+  step: 0,
+  nextT: 0,
+  timer: null,
+  duck: 1,
+
+  // Pick the track to play; the scheduler starts once the audio context runs.
+  play(id) {
+    this.want = id;
+    if (!this.enabled || !SFX.ctx) return;
+    if (this.track && this.track.id === id) return;
+    this.start(id);
+  },
+  setEnabled(on) {
+    this.enabled = on;
+    if (!on) this.stop();
+    else if (this.want != null) this.play(this.want);
+  },
+  setDuck(v) {
+    this.duck = v;
+    if (this.gain && SFX.ctx) this.gain.gain.setTargetAtTime(0.16 * v, SFX.ctx.currentTime, 0.08);
+  },
+
+  start(id) {
+    const c = SFX.ctx;
+    const def = MUSIC_TRACKS[id];
+    if (!c || !def) return;
+    this.stop();
+    if (!this.gain) {
+      this.gain = c.createGain();
+      this.gain.connect(c.destination);
+    }
+    this.gain.gain.cancelScheduledValues(c.currentTime);
+    this.gain.gain.setValueAtTime(0, c.currentTime);
+    this.gain.gain.linearRampToValueAtTime(0.16 * this.duck, c.currentTime + 1);
+    this.track = Object.assign({ id, melody: this.compose(def) }, def);
+    this.step = 0;
+    this.nextT = c.currentTime + 0.1;
+    this.timer = setInterval(() => this.schedule(), 40);
+  },
+  stop() {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    this.track = null;
+  },
+
+  // A 4-bar lead line: a random walk over the scale, landing on chord tones on the beat.
+  compose(def) {
+    let s = def.seed;
+    const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
+    const notes = [];
+    let deg = 4;
+    for (let bar = 0; bar < 4; bar++) {
+      for (let i = 0; i < 16; i++) {
+        const onBeat = i % 4 === 0;
+        if (rnd() > def.leadDensity * (onBeat ? 1.6 : i % 2 === 0 ? 1 : 0.6)) { notes.push(null); continue; }
+        deg += Math.round((rnd() - 0.5) * 4);
+        if (onBeat) deg = def.prog[bar] + [0, 2, 4][Math.floor(rnd() * 3)] + 7 * (rnd() < 0.5 ? 1 : 0);
+        deg = Math.max(0, Math.min(13, deg));
+        notes.push({ deg, len: rnd() < 0.3 ? 2 : 1 });
+      }
+    }
+    return notes;
+  },
+
+  note(deg, octave) {
+    const tr = this.track;
+    const sc = SCALES[tr.scale];
+    const o = Math.floor(deg / 7);
+    return midiHz(tr.root + 12 * (octave + o) + sc[((deg % 7) + 7) % 7]);
+  },
+
+  schedule() {
+    const c = SFX.ctx;
+    const tr = this.track;
+    if (!c || !tr || c.state !== 'running') return;
+    const sixteenth = 60 / tr.bpm / 4;
+    if (this.nextT < c.currentTime - 0.5) this.nextT = c.currentTime + 0.05; // tab was asleep
+    while (this.nextT < c.currentTime + 0.2) {
+      this.playStep(this.step, this.nextT, sixteenth);
+      this.nextT += sixteenth;
+      this.step = (this.step + 1) % 64;
+    }
+  },
+
+  voice(freq, t, dur, type, vol, cutoff) {
+    const c = SFX.ctx;
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    let out = o;
+    if (cutoff) {
+      const f = c.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = cutoff;
+      o.connect(f);
+      out = f;
+    }
+    out.connect(g);
+    g.connect(this.gain);
+    o.start(t);
+    o.stop(t + dur + 0.05);
+  },
+  hit(t, dur, freq, vol, type) {
+    const c = SFX.ctx;
+    const s = c.createBufferSource();
+    s.buffer = SFX.noiseBuf;
+    const f = c.createBiquadFilter();
+    f.type = type;
+    f.frequency.value = freq;
+    const g = c.createGain();
+    g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f);
+    f.connect(g);
+    g.connect(this.gain);
+    s.start(t, Math.random() * 0.5);
+    s.stop(t + dur + 0.02);
+  },
+
+  playStep(step, t, sx) {
+    const tr = this.track;
+    const i = step % 16;
+    const bar = Math.floor(step / 16);
+    const chord = tr.prog[bar];
+    if (tr.kick[i] === 'x') {
+      const c = SFX.ctx;
+      const o = c.createOscillator();
+      const g = c.createGain();
+      o.frequency.setValueAtTime(150, t);
+      o.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+      g.gain.setValueAtTime(0.9, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+      o.connect(g);
+      g.connect(this.gain);
+      o.start(t);
+      o.stop(t + 0.2);
+    }
+    if (tr.snare[i] === 'x') this.hit(t, 0.14, 1800, 0.45, 'bandpass');
+    if (tr.hat[i] === 'x') this.hit(t, 0.035, 8000, i % 4 === 2 ? 0.22 : 0.12, 'highpass');
+    if (tr.bassRhythm[i] === 'x') {
+      const deg = chord + (i % 8 === 6 ? 4 : 0);
+      this.voice(this.note(deg, -1), t, sx * 1.8, tr.bass, 0.32, 900);
+    }
+    if (i === 0 && tr.pad) {
+      for (const d of [0, 2, 4]) this.voice(this.note(chord + d, 0) * (1 + d * 0.0015), t, sx * 15, 'triangle', tr.pad, 1600);
+    }
+    const n = tr.melody[step];
+    if (n) {
+      const f = this.note(n.deg, 1);
+      const dur = sx * (tr.pluck ? 1.2 : n.len * 1.6);
+      this.voice(f, t, dur, tr.lead, tr.lead === 'sawtooth' || tr.lead === 'square' ? 0.07 : 0.13, tr.lead === 'sawtooth' ? 2600 : 0);
+      if (tr.bell) this.voice(f * 2, t, dur * 2, 'sine', 0.04);
+    }
+  },
+};
