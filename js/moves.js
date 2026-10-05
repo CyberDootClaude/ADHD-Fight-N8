@@ -191,7 +191,7 @@ const CLASSIC = {
 // Per-character damage adjustments that only apply in Classic, found with
 // `CLASSIC=1 node tools/balance.js`. Slower normals help armored heavies and
 // hurt characters who rely on quick pokes and teleports.
-const CLASSIC_POWER = { magna: 0.9, ferrus: 0.95, chrono: 1.1, volta: 1.1, umbra: 1.06 };
+const CLASSIC_POWER = { marina: 1.05, magna: 0.9, ferrus: 1.0, granite: 1.1, viper: 0.95, chrono: 1.1, volta: 1.1, umbra: 1.06 };
 
 function classicStats(def) {
   const st = def.stats;
