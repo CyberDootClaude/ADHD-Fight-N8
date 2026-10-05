@@ -14,6 +14,7 @@ npx http-server .   # then open http://localhost:8080
 - **2 Players** — local versus on one keyboard, or with gamepads
 - **Practice** — beat up a bot with full control over it (see below)
 - **CPU vs CPU** — watch the AI fight
+- **Profile** — your stats, and the unlocks shop (see below)
 - **Settings** — **game style** (Fast or Classic, below), game speed (**Fast** / **Turbo** / **Hyper**), CPU level, rounds to win, sound, music, and **Controls** for remapping keys
 
 ## Arcade
@@ -34,6 +35,28 @@ Pick a fighter and climb a ladder of 7 fights that get harder as you go: two Roo
 | Ferrus | Granite | | Sahar | Echo |
 | Magna | Marina | | Chrono | Nova |
 | Viper | Thorn | | Lumi | Umbra |
+
+## Progression and unlocks
+Every match earns **Fight Points (FP)**:
+- Beating the CPU earns 80 FP, plus more on higher CPU levels and for perfect rounds.
+- A loss still earns 25 FP.
+- A 2-player match earns 60 FP.
+- Landing an 8+ hit combo adds 15 FP.
+- Clearing Arcade earns a big bonus.
+
+Spend FP in **Profile → Unlocks**:
+- **Costume colors**: two extra color sets for every fighter, ALT COLORS (300 FP) and SHADOW (600 FP). On the character select screen, press **Dash** (or click the fighter) to switch colors. When both players pick the same fighter in the same colors, player 2 is tinted automatically.
+- **Stages**: **Desert Ruins** (800 FP) and **Void Throne** (2000 FP, or free once you beat Arcade). Each has its own music. NULL always fights you on the Void Throne.
+- **Player titles**, shown on the title and results screens:
+  - Earned: FIRST BLOOD, BRAWLER, COMBO FIEND (10-hit combo), UNTOUCHABLE (perfect round), ON FIRE (5 CPU wins in a row), OLD SCHOOL (win in Classic), HYPERACTIVE (win on Hyper), VOID BREAKER (beat Arcade), GRAND MASTER (beat Arcade with 8 fighters).
+  - Bought: STORM CALLER, ELEMENT LORD, LIVING LEGEND.
+
+**Profile → Stats** shows:
+- matches played, your record against the CPU and your best win streak
+- best combo, perfect rounds, Arcade clears and time played
+- for each fighter: wins, win rate, best combo, best Arcade score and unlocked colors
+
+Everything is saved in your browser.
 
 ## Game styles
 **Fast** (default) is the original: air-dashes, double jumps, running, and free-flowing combos.
@@ -185,6 +208,7 @@ npm test
 - `js/ai.js`: the CPU opponent, which plays through a virtual controller
 - `js/game.js`: menus, scenes and the main loop
 - `js/arcade.js`: Arcade mode: ladder, story text, the boss and its screens
+- `js/profile.js`: Fight Points, stats, unlockable costumes, stages and titles, and the Profile screen
 
 Press `` ` `` during play to show hitboxes.
 

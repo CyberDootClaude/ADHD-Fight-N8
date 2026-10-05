@@ -76,7 +76,8 @@ const Game = {
       if (e.code === 'Backquote') this.debug = !this.debug;
     });
     this.initMouse();
-    this.titleStage = U.randi(0, STAGES.length - 1);
+    Profile.load();
+    this.titleStage = U.pick(Profile.openStages());
   },
 
   initMouse() {
@@ -231,6 +232,7 @@ const Game = {
       case 'stage': return this.updateStage(n);
       case 'fight': return this.updateFight(n);
       case 'results': return this.updateResults(n);
+      case 'profile': return this.updateProfile(n);
       default: if (this.scene.startsWith('arcade')) return this.updateArcade(n);
     }
   },
@@ -246,7 +248,7 @@ const Game = {
     }
   },
 
-  TITLE_ITEMS: ['ARCADE', 'VS CPU', '2 PLAYERS', 'PRACTICE', 'CPU vs CPU', 'SETTINGS', 'HOW TO PLAY'],
+  TITLE_ITEMS: ['ARCADE', 'VS CPU', '2 PLAYERS', 'PRACTICE', 'CPU vs CPU', 'PROFILE', 'SETTINGS', 'HOW TO PLAY'],
   TITLE_MODES: { ARCADE: 'arcade', 'VS CPU': 'cpu', '2 PLAYERS': 'vs', PRACTICE: 'training', 'CPU vs CPU': 'watch' },
 
   updateTitle(n) {
@@ -258,7 +260,8 @@ const Game = {
     if (this.TITLE_MODES[item]) {
       this.mode = this.TITLE_MODES[item];
       this.startSelect();
-    } else if (item === 'SETTINGS') this.go('settings');
+    } else if (item === 'PROFILE') this.openProfile();
+    else if (item === 'SETTINGS') this.go('settings');
     else this.go('howto');
   },
 
@@ -302,8 +305,35 @@ const Game = {
   // ------------------------------------------------------------ character select
   startSelect() {
     this.go('select');
-    this.sel = { cur: [0, 1], locked: [false, false], phase: 0, done: 0 };
+    this.sel = { cur: [0, 1], locked: [false, false], phase: 0, done: 0, costume: [0, 0], costumeFor: [null, null] };
     if (this.lastPicks) this.sel.cur = this.lastPicks.slice();
+  },
+
+  // The costume player p has chosen on the select screen (resets to the saved one when the fighter changes).
+  selCostume(p) {
+    const s = this.sel;
+    const id = ROSTER[s.cur[p]].id;
+    if (s.costumeFor[p] !== id) {
+      s.costumeFor[p] = id;
+      s.costume[p] = Profile.costumeOf(id);
+    }
+    return s.costume[p];
+  },
+  cycleCostume(p) {
+    const id = ROSTER[this.sel.cur[p]].id;
+    const k = this.selCostume(p);
+    const nk = Profile.nextCostume(id, k);
+    if (nk === k) return;
+    this.sel.costume[p] = nk;
+    SFX.play('select');
+  },
+
+  // Fighter definitions for the next match, wearing their costumes.
+  matchDefs() {
+    const ids = this.lastPicks.map((i) => ROSTER[i]);
+    const c = (this.lastCostumes || [0, 0]).slice();
+    if (ids[0] === ids[1] && c[0] === c[1]) return [Profile.dress(ids[0], c[0]), Profile.dress(ids[1], MIRROR_COSTUME)];
+    return [Profile.dress(ids[0], c[0]), Profile.dress(ids[1], c[1])];
   },
 
   updateSelect(n) {
@@ -330,9 +360,14 @@ const Game = {
     if (s.done > 0) {
       if (++s.done > 40) {
         this.lastPicks = s.cur.slice();
+        this.lastCostumes = [this.selCostume(0), this.selCostume(1)];
+        const pf = Profile.get();
+        pf.costume[ROSTER[s.cur[0]].id] = this.lastCostumes[0];
+        if (this.mode === 'vs') pf.costume[ROSTER[s.cur[1]].id] = this.lastCostumes[1];
+        Profile.save();
         if (this.mode === 'arcade') return this.startArcade();
         this.go('stage');
-        this.stageIdx = U.randi(0, STAGES.length - 1);
+        this.stageIdx = U.pick(Profile.openStages());
       }
       return;
     }
@@ -342,6 +377,7 @@ const Game = {
         const nv = this.nav(this.inputs[p], this.holds[p]);
         if ((this.q.player || 0) === p) for (const k of ['ok', 'back', 'rand']) if (this.q[k]) nv[k] = true;
         if (!s.locked[p]) {
+          if (this.inputs[p].edge.D || this.q.costume === p) this.cycleCostume(p);
           moveCur(p, nv);
           if (nv.ok || nv.rand) lock(p, nv.rand);
           else if (nv.back && p === 0) {
@@ -357,6 +393,7 @@ const Game = {
       return;
     }
     const p = s.phase;
+    if (this.menuIn.edge.D || this.q.costume === p) this.cycleCostume(p);
     moveCur(p, n);
     if (n.ok || n.rand) {
       lock(p, n.rand);
@@ -375,12 +412,10 @@ const Game = {
   },
 
   updateStage(n) {
-    if (n.left) {
-      this.stageIdx = (this.stageIdx + STAGES.length - 1) % STAGES.length;
-      SFX.play('select');
-    }
-    if (n.right) {
-      this.stageIdx = (this.stageIdx + 1) % STAGES.length;
+    if (n.left || n.right) {
+      const open = Profile.openStages();
+      const k = open.indexOf(this.stageIdx);
+      this.stageIdx = open[(k + (n.left ? open.length - 1 : 1)) % open.length];
       SFX.play('select');
     }
     if (n.ok) {
@@ -404,7 +439,7 @@ const Game = {
     }
     this.inputs = [new PlayerInput(), new PlayerInput()];
     this.match = new Match({
-      defs: [ROSTER[this.lastPicks[0]], ROSTER[this.lastPicks[1]]],
+      defs: this.matchDefs(),
       stage: this.stageIdx,
       inputs: this.inputs,
       ai,
@@ -482,6 +517,8 @@ const Game = {
       return;
     }
     m.tick();
+    if (m.over) this.showReward(Profile.recordMatch(m, this.mode, this.settings, this.arc && this.arc.i));
+    else if (this.lastReward && m.frame < 5) this.lastReward = null;
     if (m.over && this.mode === 'arcade') return this.arcadeMatchOver(m);
     if (m.over) {
       this.go('results');
@@ -723,8 +760,10 @@ const Game = {
         }
         break;
       case 'results': this.drawResults(ctx); break;
+      case 'profile': this.drawProfile(ctx); break;
       default: if (this.scene.startsWith('arcade')) this.drawArcade(ctx);
     }
+    this.drawToasts(ctx);
   },
 
   drawBackdrop(ctx, stageIdx, dim = 0.35) {
@@ -807,8 +846,15 @@ const Game = {
     ctx.fillText('ADHD FIGHT N8', 0, 0);
     txt(ctx, `ELEMENTAL ARENA BRAWLER  •  ${ROSTER.length} FIGHTERS  •  ${STYLES[this.settings.style].name} STYLE`, 0, 46, 22, '#80d8ff', 'center', 4, 700, 'sans-serif');
     ctx.restore();
-    this.drawMenu(ctx, this.TITLE_ITEMS, VIEW_W / 2, 290);
+    this.drawMenu(ctx, this.TITLE_ITEMS, VIEW_W / 2, this.titleMenuY());
+    const pf = Profile.get();
+    txt(ctx, `★ ${pf.fp} FP`, VIEW_W - 24, 40, 24, '#ffd54f', 'right', 4);
+    txt(ctx, Profile.titleName(), VIEW_W - 24, 64, 16, '#80d8ff', 'right', 3, 700, 'sans-serif');
     txt(ctx, '↑↓ or mouse to choose   •   F / Enter / click to confirm   •   ` toggles hitboxes', VIEW_W / 2, VIEW_H - 24, 18, '#ddd', 'center', 3, 700, 'sans-serif');
+  },
+
+  titleMenuY() {
+    return this.TITLE_ITEMS.length > 7 ? 250 : 290;
   },
 
   drawSettings(ctx) {
@@ -893,7 +939,8 @@ const Game = {
     for (let p = 0; p < 2; p++) {
       const show = this.mode === 'vs' || p <= s.phase || s.locked[p];
       if (!show) continue;
-      const def = ROSTER[s.cur[p]];
+      const ck = this.selCostume(p);
+      const def = Profile.dress(ROSTER[s.cur[p]], ck);
       const fx = p === 0 ? 190 : VIEW_W - 190;
       // pedestal glow
       glow(ctx, fx, 440, 170, def.color, 0.35);
@@ -905,6 +952,12 @@ const Game = {
       }
       drawFigure(ctx, def, pose, fx, 450, p === 0 ? 1 : -1, 2.0 / def.size * (0.85 + def.size * 0.15), { t });
       txt(ctx, labels[p], fx, 480, 26, pcol[p], 'center', 4);
+      // costume: Dash (or a click on the fighter) cycles through the unlocked colors
+      const owned = COSTUMES.filter((c, k) => Profile.hasCostume(def.id, k)).length;
+      if (owned > 1 && !s.locked[p]) {
+        txt(ctx, `${COSTUMES[ck].name}  •  ${p === 0 ? Keybinds.text(0, 'D') : this.mode === 'vs' ? Keybinds.text(1, 'D') : Keybinds.text(0, 'D')}: colors`, fx, 104, 15, '#ffd54f', 'center', 3, 700, 'sans-serif');
+        this.hotspot(fx - 90, 150, 180, 300, null, () => (this.mouseQ.costume = p));
+      }
       // info panel
       const ix = p === 0 ? 350 : 660;
       ctx.fillStyle = 'rgba(0,0,0,0.45)';
@@ -1024,7 +1077,7 @@ const Game = {
   drawStage(ctx) {
     this.drawBackdrop(ctx, this.stageIdx, 0.1);
     const t = this.t;
-    const defs = this.lastPicks.map((i) => ROSTER[i]);
+    const defs = this.matchDefs();
     drawFigure(ctx, defs[0], POSES.idle, 380, GROUND_Y, 1, 1.3, { t });
     drawFigure(ctx, defs[1], POSES.idle, 900, GROUND_Y, -1, 1.3, { t });
     txt(ctx, 'CHOOSE STAGE', VIEW_W / 2, 90, 44, '#ffd600');
@@ -1085,6 +1138,11 @@ const Game = {
     const who = this.mode === 'vs' ? `PLAYER ${w.side + 1}` : this.mode === 'watch' ? `CPU ${w.side + 1}` : w.side === 0 ? 'YOU WIN!' : 'CPU WINS';
     txt(ctx, `${w.def.name} WINS!`, VIEW_W / 2, 100, 84, w.def.color, 'center', 8);
     txt(ctx, who, VIEW_W / 2, 150, 34, '#fff', 'center', 5);
+    const rw = this.lastReward;
+    if (rw && this.sceneT >= 30) {
+      txt(ctx, `+${rw.fp} FP`, 200, 450, 34, '#ffd54f', 'center', 5);
+      txt(ctx, `★ ${Profile.get().fp} FP  •  ${Profile.titleName()}`, 200, 482, 17, '#80d8ff', 'center', 3, 700, 'sans-serif');
+    }
     txt(ctx, `${m.f[0].wins} - ${m.f[1].wins}`, VIEW_W / 2, 196, 32, '#ffd600', 'center', 5);
     if (this.resultsQuote && this.sceneT >= 20) {
       // speech bubble with the winner's quote

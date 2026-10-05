@@ -165,6 +165,12 @@ const MUSIC_TRACKS = {
   // Bamboo Grove: hirajoshi, plucky
   4: { bpm: 144, root: 52, scale: 'hira', prog: [0, 3, 0, 4], seed: 59, lead: 'triangle', bass: 'triangle',
     kick: 'x-----x-x-------', snare: '----x--x----x---', hat: 'x--x--x-x--x--x-', bassRhythm: 'x---x-x-x---x-x-', leadDensity: 0.5, pad: 0.04, pluck: true },
+  // Desert Ruins: phrygian, hand-drum feel
+  5: { bpm: 136, root: 48, scale: 'phrygian', prog: [0, 1, 0, 3], seed: 71, lead: 'triangle', bass: 'square',
+    kick: 'x--x--x---x--x--', snare: '---x---x---x--x-', hat: 'x-x-xx-xx-x-xx-x', bassRhythm: 'x--x--x---x-x---', leadDensity: 0.55, pad: 0.04, pluck: true },
+  // Void Throne: slow and menacing, then driving
+  6: { bpm: 170, root: 38, scale: 'minor', prog: [0, 1, 5, 4], seed: 83, lead: 'sawtooth', bass: 'sawtooth',
+    kick: 'x-x-x-x-x-x-x-xx', snare: '----x-------x-x-', hat: 'x-xxx-xxx-xxx-xx', bassRhythm: 'xxxxxxxxxxxxxxxx', leadDensity: 0.4, pad: 0.06 },
 };
 
 const Music = {

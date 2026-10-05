@@ -757,6 +757,11 @@ class Fighter {
     this.lastDmg = dmg;
     this.comboDmg += dmg;
     this.comboShow = 90;
+    // the attacker's best combo this match (for stats and unlocks)
+    if (att && att !== this && (this.combo > (att.bestCombo || 0) || (this.combo === att.bestCombo && this.comboDmg > att.bestComboDmg))) {
+      att.bestCombo = this.combo;
+      att.bestComboDmg = this.comboDmg;
+    }
     if (!hit.super) att.gainMeter(dmg * 0.35);
     this.gainMeter(dmg * 0.35);
     if (this.adrenaline() && !this.adrenalineShown && this.hp > 0) {

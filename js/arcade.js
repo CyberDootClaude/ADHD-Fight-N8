@@ -140,7 +140,8 @@ Object.assign(Game, {
     const ladder = pool.slice(0, 5).concat([rival, ARCADE_BOSS]);
     this.arc = {
       me, story, ladder, i: 0, score: 0, continues: 0, perfects: 0, frames: 0,
-      stages: ladder.map((d, i) => (i === ladder.length - 1 ? 3 : U.randi(0, STAGES.length - 1))),
+      // the boss always waits on the Void Throne
+      stages: ladder.map((d, i) => (i === ladder.length - 1 ? Math.max(0, STAGES.findIndex((st) => st.name === 'Void Throne')) : U.pick(Profile.openStages()))),
     };
     this.go('arcadeIntro');
   },
@@ -151,7 +152,7 @@ Object.assign(Game, {
     this.stageIdx = a.stages[a.i];
     this.inputs = [new PlayerInput(), new PlayerInput()];
     this.match = new Match({
-      defs: [a.me, opp],
+      defs: [Profile.dress(a.me, Profile.costumeOf(a.me.id)), opp],
       stage: this.stageIdx,
       inputs: this.inputs,
       ai: [null, new AIController(ARCADE_LEVELS[a.i])],
@@ -327,6 +328,7 @@ Object.assign(Game, {
         const secs = String(Math.floor(a.frames / 60) % 60).padStart(2, '0');
         txt(ctx, `FINAL SCORE ${a.score}${a.newBest ? '  — NEW BEST!' : ''}`, 820, 520, 34, a.newBest ? '#69f0ae' : '#fff', 'center', 5);
         txt(ctx, `Time ${mins}:${secs}   •   Perfects ${a.perfects}   •   Continues ${a.continues}`, 820, 565, 22, '#b3e5fc', 'center', 3, 700, 'sans-serif');
+        if (this.arcadeReward) txt(ctx, `+${this.arcadeReward.fp} FP`, 820, 600, 26, '#ffd54f', 'center', 4);
         if (T > 60) txt(ctx, 'Press any button', 820, 640, 22, '#aaa', 'center', 3, 700, 'sans-serif');
         if (T > 60) this.hotspot(0, 0, VIEW_W, VIEW_H, null, () => (this.mouseQ.ok = true));
         break;
