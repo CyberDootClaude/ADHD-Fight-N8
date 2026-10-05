@@ -224,13 +224,14 @@ const Game = {
         if (n.ok || n.back) {
           SFX.play('back');
           this.go('title');
-          this.cursor = 5;
+          this.cursor = this.TITLE_ITEMS.indexOf('HOW TO PLAY');
         }
         return;
       case 'select': return this.updateSelect(n);
       case 'stage': return this.updateStage(n);
       case 'fight': return this.updateFight(n);
       case 'results': return this.updateResults(n);
+      default: if (this.scene.startsWith('arcade')) return this.updateArcade(n);
     }
   },
 
@@ -245,18 +246,19 @@ const Game = {
     }
   },
 
-  TITLE_ITEMS: ['VS CPU', '2 PLAYERS', 'PRACTICE', 'CPU vs CPU', 'SETTINGS', 'HOW TO PLAY'],
+  TITLE_ITEMS: ['ARCADE', 'VS CPU', '2 PLAYERS', 'PRACTICE', 'CPU vs CPU', 'SETTINGS', 'HOW TO PLAY'],
+  TITLE_MODES: { ARCADE: 'arcade', 'VS CPU': 'cpu', '2 PLAYERS': 'vs', PRACTICE: 'training', 'CPU vs CPU': 'watch' },
 
   updateTitle(n) {
     this.menuMove(n, this.TITLE_ITEMS.length);
     if (!n.ok) return;
     SFX.init();
     SFX.play('confirm');
-    const c = this.cursor;
-    if (c <= 3) {
-      this.mode = ['cpu', 'vs', 'training', 'watch'][c];
+    const item = this.TITLE_ITEMS[this.cursor];
+    if (this.TITLE_MODES[item]) {
+      this.mode = this.TITLE_MODES[item];
       this.startSelect();
-    } else if (c === 4) this.go('settings');
+    } else if (item === 'SETTINGS') this.go('settings');
     else this.go('howto');
   },
 
@@ -293,7 +295,7 @@ const Game = {
     if (n.back || (n.ok && item === 'BACK')) {
       SFX.play('back');
       this.go('title');
-      this.cursor = 4;
+      this.cursor = this.TITLE_ITEMS.indexOf('SETTINGS');
     }
   },
 
@@ -328,6 +330,7 @@ const Game = {
     if (s.done > 0) {
       if (++s.done > 40) {
         this.lastPicks = s.cur.slice();
+        if (this.mode === 'arcade') return this.startArcade();
         this.go('stage');
         this.stageIdx = U.randi(0, STAGES.length - 1);
       }
@@ -357,7 +360,8 @@ const Game = {
     moveCur(p, n);
     if (n.ok || n.rand) {
       lock(p, n.rand);
-      if (p === 0) {
+      if (p === 0 && this.mode === 'arcade') s.done = 1;
+      else if (p === 0) {
         s.phase = 1;
         if (s.cur[1] === s.cur[0]) s.cur[1] = (s.cur[0] + 1) % ROSTER.length;
       } else s.done = 1;
@@ -462,7 +466,7 @@ const Game = {
             this.openControls();
             this.pauseView = 'controls';
             break;
-          case 'RESTART': this.startMatch(); break;
+          case 'RESTART': if (this.mode === 'arcade') this.startArcadeFight(); else this.startMatch(); break;
           case 'CHARACTER SELECT': this.startSelect(); break;
           case 'MAIN MENU': this.go('title'); break;
         }
@@ -478,6 +482,7 @@ const Game = {
       return;
     }
     m.tick();
+    if (m.over && this.mode === 'arcade') return this.arcadeMatchOver(m);
     if (m.over) {
       this.go('results');
       this.resultsWinner = m.winner;
@@ -718,6 +723,7 @@ const Game = {
         }
         break;
       case 'results': this.drawResults(ctx); break;
+      default: if (this.scene.startsWith('arcade')) this.drawArcade(ctx);
     }
   },
 

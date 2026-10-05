@@ -9,11 +9,31 @@ npx http-server .   # then open http://localhost:8080
 ```
 
 ## Modes
+- **Arcade** — climb a ladder of 7 CPU fights (see below)
 - **VS CPU** — you against the CPU (Easy / Normal / Hard)
 - **2 Players** — local versus on one keyboard, or with gamepads
 - **Practice** — beat up a bot with full control over it (see below)
 - **CPU vs CPU** — watch the AI fight
 - **Settings** — **game style** (Fast or Classic, below), game speed (**Fast** / **Turbo** / **Hyper**), CPU level, rounds to win, sound, music, and **Controls** for remapping keys
+
+## Arcade
+Pick a fighter and climb a ladder of 7 fights that get harder as you go: two Rookie fights (Easy CPU), two Contenders (Normal), a Champion (Hard), then your **rival** and finally the boss, **NULL, the Void Emperor**, who copies the best moves from the roster.
+- Every fighter has their own intro, a line for their rival, and an ending.
+- You score points for each win, with bonuses for remaining health and perfect rounds.
+- If you lose, you can **continue** (it halves your score) or end the run.
+- Clears and best scores are saved in your browser.
+- Arcade works in both the Fast and Classic styles.
+
+| Fighter | Rival | | Fighter | Rival |
+|---|---|---|---|---|
+| Kaze | Volta | | Nivia | Ember |
+| Ember | Nivia | | Umbra | Lumi |
+| Marina | Magna | | Thorn | Viper |
+| Granite | Ferrus | | Nova | Chrono |
+| Volta | Kaze | | Echo | Sahar |
+| Ferrus | Granite | | Sahar | Echo |
+| Magna | Marina | | Chrono | Nova |
+| Viper | Thorn | | Lumi | Umbra |
 
 ## Game styles
 **Fast** (default) is the original: air-dashes, double jumps, running, and free-flowing combos.
@@ -164,6 +184,7 @@ npm test
 - `js/audio.js`: synthesized sound effects and the procedural music engine
 - `js/ai.js`: the CPU opponent, which plays through a virtual controller
 - `js/game.js`: menus, scenes and the main loop
+- `js/arcade.js`: Arcade mode: ladder, story text, the boss and its screens
 
 Press `` ` `` during play to show hitboxes.
 

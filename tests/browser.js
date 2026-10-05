@@ -25,6 +25,12 @@ async function open(browser, ctxOpts = {}, init) {
   p.ev = (f, a) => p.evaluate(f, a);
   return { ctx, p };
 }
+// press ↓ until the title menu highlights `item`
+const titleTo = async (p, item) => {
+  const n = await p.ev((it) => Game.TITLE_ITEMS.indexOf(it), item);
+  for (let i = 0; i < n; i++) await p.key('ArrowDown');
+};
+const titleRowY = (p, item) => p.ev((it) => 290 + Game.TITLE_ITEMS.indexOf(it) * 54 - 12, item);
 const noErrors = (label, p) => check(`${label}: no page errors`, p.errs.length === 0, p.errs.slice(0, 2).join(' | '));
 
 // ---- every fighter, both styles, in the real page ----
@@ -51,7 +57,7 @@ async function cpuMatches(b) {
 // ---- practice mode through the real menus ----
 async function practice(b) {
   const { ctx, p } = await open(b);
-  await p.key('ArrowDown'); await p.key('ArrowDown'); await p.key('Enter');
+  await titleTo(p, 'PRACTICE'); await p.key('Enter');
   check('Practice: title menu opens practice select', (await p.ev(() => Game.scene + '/' + Game.mode)) === 'select/training');
   await p.key('KeyF'); await p.key('KeyF'); await p.waitForTimeout(900);
   await p.key('KeyF'); await p.waitForTimeout(600);
@@ -83,7 +89,7 @@ async function practice(b) {
 // ---- remapping keys ----
 async function controls(b) {
   const { ctx, p } = await open(b);
-  for (let i = 0; i < 4; i++) await p.key('ArrowDown');
+  await titleTo(p, 'SETTINGS');
   await p.key('Enter');
   const ctlRow = await p.ev(() => Game.SETTINGS_ITEMS.indexOf('CONTROLS'));
   for (let i = 0; i < ctlRow; i++) await p.key('ArrowDown');
@@ -185,6 +191,57 @@ async function mechanics(b) {
   await ctx.close();
 }
 
+// ---- arcade mode ----
+async function arcade(b) {
+  const { ctx, p } = await open(b);
+  await titleTo(p, 'ARCADE'); await p.key('Enter');
+  check('Arcade: title menu opens arcade select', await p.ev(() => Game.scene + '/' + Game.mode) === 'select/arcade');
+  await p.key('KeyF'); await p.waitForTimeout(1000);
+  const intro = await p.ev(() => ({ scene: Game.scene, n: Game.arc.ladder.length, rival: Game.arc.ladder[5].id, want: ARCADE_STORY[Game.arc.me.id].rival, boss: Game.arc.ladder[6] === ARCADE_BOSS, unique: new Set(Game.arc.ladder.map((d) => d.id)).size, self: Game.arc.ladder.includes(Game.arc.me) }));
+  check('Arcade: picking a fighter shows the intro', intro.scene === 'arcadeIntro', intro.scene);
+  check('Arcade: 7 different opponents, rival 6th, boss last', intro.n === 7 && intro.rival === intro.want && intro.boss && intro.unique === 7 && !intro.self, JSON.stringify(intro));
+  await p.key('Enter'); await p.waitForTimeout(100);
+  check('Arcade: intro → VS screen', await p.ev(() => Game.scene) === 'arcadeVs');
+  await p.waitForTimeout(600); await p.key('Enter'); await p.waitForTimeout(100);
+  const f1 = await p.ev(() => ({ scene: Game.scene, lvl: Game.match.ai[1].cfg === AI_LEVELS.easy, opp: Game.match.f[1].def.id === Game.arc.ladder[0].id }));
+  check('Arcade: first fight is against an Easy CPU', f1.scene === 'fight' && f1.lvl && f1.opp, JSON.stringify(f1));
+  // win the fight
+  await p.ev(() => { const m = Game.match; m.over = true; m.winner = m.f[0]; });
+  await p.waitForTimeout(100);
+  const after = await p.ev(() => ({ scene: Game.scene, i: Game.arc.i, score: Game.arc.score }));
+  check('Arcade: a win scores points and moves up the ladder', after.scene === 'arcadeVs' && after.i === 1 && after.score > 1000, JSON.stringify(after));
+  // lose: continue, then lose again and let the countdown run out
+  await p.waitForTimeout(600); await p.key('Enter'); await p.waitForTimeout(100);
+  await p.ev(() => { const m = Game.match; m.over = true; m.winner = m.f[1]; });
+  await p.waitForTimeout(500);
+  check('Arcade: losing offers a continue', await p.ev(() => Game.scene) === 'arcadeContinue');
+  await p.key('Enter'); await p.waitForTimeout(100);
+  const cont = await p.ev(() => ({ scene: Game.scene, c: Game.arc.continues, i: Game.arc.i }));
+  check('Arcade: continue retries the same fight', cont.scene === 'fight' && cont.c === 1 && cont.i === 1, JSON.stringify(cont));
+  // the boss fight runs for real, with drawing
+  const boss = await p.ev(() => {
+    Game.arc.i = 6; Game.startArcadeFight();
+    const m = Game.match;
+    m.ai[0] = new AIController('hard');
+    for (let i = 0; i < 60 * 30 && !m.over; i++) { m.tick(); if (i % 60 === 0) Game.draw(); }
+    return { name: m.f[1].def.name, lvl: m.ai[1].cfg === AI_LEVELS.boss, hp: m.f[1].maxHp };
+  });
+  check('Arcade: the final boss NULL fights at boss level', boss.name === 'NULL' && boss.lvl && boss.hp > 1000, JSON.stringify(boss));
+  await p.ev(() => { const m = Game.match; m.over = true; m.winner = m.f[0]; m.f[0].hp = m.f[0].maxHp; });
+  await p.waitForTimeout(300);
+  const end = await p.ev(() => ({ scene: Game.scene, rec: JSON.parse(localStorage.getItem('adhd-fight-arcade') || '{}')[Game.arc.me.id] }));
+  check('Arcade: beating the boss shows the ending and saves the clear', end.scene === 'arcadeEnd' && end.rec && end.rec.clears === 1 && end.rec.best > 0, JSON.stringify(end));
+  await p.waitForTimeout(1200); await p.key('Enter');
+  check('Arcade: ending returns to the title', await p.ev(() => Game.scene) === 'title');
+  // game over path
+  await p.ev(() => { Game.mode = 'arcade'; Game.lastPicks = [3, 0]; Game.startArcade(); Game.startArcadeFight(); const m = Game.match; m.over = true; m.winner = m.f[1]; });
+  await p.waitForTimeout(200); await p.key('Escape'); await p.waitForTimeout(100);
+  check('Arcade: declining the continue is game over', await p.ev(() => Game.scene) === 'arcadeOver');
+  await p.ev(() => { Game.paused = false; });
+  noErrors('Arcade', p);
+  await ctx.close();
+}
+
 // ---- hit sparks, KO camera, victory poses, win quotes, music ----
 async function polish(b) {
   const { ctx, p } = await open(b);
@@ -249,10 +306,14 @@ async function touch(b) {
   const center = (sel) => p.ev((s) => { const r = document.querySelector(s).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, sel);
   const send = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map((q, i) => ({ x: q.x, y: q.y, id: i })) });
   const tap = async (sel, ms = 80) => { const c = await center(sel); await send('touchStart', [c]); await p.waitForTimeout(ms); await send('touchEnd', []); await p.waitForTimeout(60); };
-  await send('touchStart', [{ x: 400, y: 200 }]); await send('touchEnd', []); await p.waitForTimeout(100);
+  // first tap in an empty corner (tapping a menu row would select it)
+  await send('touchStart', [{ x: 30, y: 30 }]); await send('touchEnd', []); await p.waitForTimeout(100);
   check('Touch: controls appear after the first tap', await p.ev(() => getComputedStyle(document.getElementById('touch')).display !== 'none'));
-  await tap('.down'); await tap('.down'); await tap('.l');
-  check('Touch: menu navigation', await p.ev(() => Game.scene + '/' + Game.mode) === 'select/training');
+  const pr = await p.ev(() => Game.TITLE_ITEMS.indexOf('PRACTICE'));
+  for (let i = 0; i < pr; i++) await tap('.down');
+  await tap('.l');
+  const tm = await p.ev(() => Game.scene + '/' + Game.mode + ' cursor ' + Game.cursor);
+  check('Touch: menu navigation', tm.startsWith('select/training'), tm);
   await tap('.l'); await tap('.l'); await p.waitForTimeout(800); await tap('.l'); await p.waitForTimeout(400);
   check('Touch: start a fight', await p.ev(() => Game.scene) === 'fight');
   const r = await center('.right'), l = await center('.l');
@@ -279,7 +340,9 @@ async function gamepad(b) {
     window.__axis = (i, a, v) => { window.__pads[i].axes[a] = v; };
   });
   const btn = async (i, n, ms = 80) => { await p.ev(([i, n]) => __press(i, n, true), [i, n]); await p.waitForTimeout(ms); await p.ev(([i, n]) => __press(i, n, false), [i, n]); await p.waitForTimeout(60); };
-  await btn(0, 13); await btn(0, 2);
+  const twoP = await p.ev(() => Game.TITLE_ITEMS.indexOf('2 PLAYERS'));
+  for (let i = 0; i < twoP; i++) await btn(0, 13);
+  await btn(0, 2);
   check('Gamepad: menu (d-pad + X) picks 2 PLAYERS', await p.ev(() => Game.scene + '/' + Game.mode) === 'select/vs');
   await btn(0, 2); await btn(1, 15); await btn(1, 2); await p.waitForTimeout(800);
   await btn(0, 2); await p.waitForTimeout(2000);
@@ -308,7 +371,7 @@ async function mouse(b) {
   const at = (x, y) => ({ x: rect.x + x * rect.s, y: rect.y + y * rect.s });
   const click = async (x, y, button = 'left') => { const q = at(x, y); await p.mouse.move(q.x, q.y, { steps: 3 }); await p.waitForTimeout(40); await p.mouse.click(q.x, q.y, { button }); await p.waitForTimeout(120); };
   // hotspots are registered while drawing, so click the center of the one whose label matches
-  await click(640, 290 + 4 * 54 - 12);
+  await click(640, await titleRowY(p, 'SETTINGS'));
   check('Mouse: click SETTINGS on the title', await p.ev(() => Game.scene) === 'settings');
   const arrows = await p.ev(() => Game.hot.filter((h) => h.w < 100 && h.y < 200).map((h) => [Math.round(h.x + h.w / 2), Math.round(h.y + h.h / 2)]));
   await click(arrows[1][0], arrows[1][1]);
@@ -316,7 +379,7 @@ async function mouse(b) {
   await click(arrows[0][0], arrows[0][1]);
   await click(640, 400, 'right');
   check('Mouse: right-click goes back', await p.ev(() => Game.scene) === 'title');
-  await click(640, 290 + 2 * 54 - 12);
+  await click(640, await titleRowY(p, 'PRACTICE'));
   check('Mouse: click PRACTICE', await p.ev(() => Game.scene + '/' + Game.mode) === 'select/training');
   await click(770 + 59, 550);
   check('Mouse: click a character card', await p.ev(() => Game.sel.locked[0]));
@@ -336,7 +399,7 @@ async function mouse(b) {
 (async () => {
   const browser = await chromium.launch();
   try {
-    for (const t of [cpuMatches, practice, controls, mechanics, polish, touch, gamepad, mouse]) {
+    for (const t of [cpuMatches, practice, controls, mechanics, arcade, polish, touch, gamepad, mouse]) {
       try { await t(browser); } catch (e) { check(`${t.name}: ran to the end`, false, String(e.stack || e).split('\n').slice(0, 3).join(' ')); }
     }
   } finally { await browser.close(); }
