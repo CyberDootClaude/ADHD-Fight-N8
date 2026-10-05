@@ -1320,4 +1320,92 @@ const STAGES = [
       }
     },
   },
+  // ---- unlockable stages (see js/profile.js)
+  {
+    name: 'Desert Ruins', floor: '#c2a36b', floorLine: '#e6c98f', unlock: true,
+    draw(ctx, cam, gy, t, W, H) {
+      const gr = ctx.createLinearGradient(0, 0, 0, H);
+      gr.addColorStop(0, '#ff9e5e');
+      gr.addColorStop(0.55, '#ffd29a');
+      gr.addColorStop(1, '#f6e3b4');
+      ctx.fillStyle = gr;
+      ctx.fillRect(0, 0, W, H);
+      glow(ctx, W * 0.7 - cam.x * 0.03, gy - 330, 120, '#fff3c4', 0.8);
+      mountains(ctx, gy - 90, '#e0a96d', 3, 70, cam.x * 0.07, W);
+      // broken columns and an arch
+      const off = -cam.x * 0.3;
+      for (let i = 0; i < 9; i++) {
+        const cx = (((i * 260 + off) % (W + 400)) + W + 400) % (W + 400) - 200;
+        const h = 120 + ((i * 53) % 5) * 40;
+        ctx.fillStyle = '#b5895a';
+        ctx.fillRect(cx, gy - h, 34, h);
+        ctx.fillStyle = '#9c7448';
+        ctx.fillRect(cx - 6, gy - h, 46, 12);
+        if (i % 3 === 1) {
+          ctx.strokeStyle = '#b5895a';
+          ctx.lineWidth = 22;
+          ctx.beginPath();
+          ctx.arc(cx + 100, gy - h, 83, Math.PI, 0);
+          ctx.stroke();
+          ctx.fillRect(cx + 166, gy - h, 34, h);
+        }
+      }
+      mountains(ctx, gy + 5, '#d9b77f', 8, 30, cam.x * 0.45, W);
+      // drifting sand
+      ctx.fillStyle = 'rgba(255,240,200,0.5)';
+      for (let i = 0; i < 40; i++) {
+        const sx = ((i * 97 + t * (2 + (i % 4))) % W + W) % W;
+        const sy = gy - 20 - ((i * 37) % 260) + Math.sin(t * 0.05 + i) * 6;
+        ctx.fillRect(sx, sy, 4, 1.5);
+      }
+    },
+  },
+  {
+    name: 'Void Throne', floor: '#0d0716', floorLine: '#b388ff', unlock: true,
+    draw(ctx, cam, gy, t, W, H) {
+      ctx.fillStyle = '#05010c';
+      ctx.fillRect(0, 0, W, H);
+      // a swirling rift behind the throne
+      const rx = W * 0.5 - cam.x * 0.05 + 200;
+      for (let k = 6; k > 0; k--) {
+        glow(ctx, rx, gy - 260, 40 + k * 45, k % 2 ? '#7c4dff' : '#311b92', 0.25);
+      }
+      ctx.strokeStyle = 'rgba(179,136,255,0.5)';
+      ctx.lineWidth = 2;
+      for (let k = 0; k < 5; k++) {
+        ctx.beginPath();
+        ctx.ellipse(rx, gy - 260, 70 + k * 40, 26 + k * 14, t * 0.01 * (k % 2 ? 1 : -1) + k, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // floating shards
+      for (let i = 0; i < 24; i++) {
+        const sx = ((i * 173 - cam.x * (0.1 + (i % 3) * 0.1)) % W + W) % W;
+        const sy = gy - 60 - ((i * 89) % 380) + Math.sin(t * 0.03 + i) * 12;
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.rotate(t * 0.01 + i);
+        ctx.fillStyle = i % 4 ? '#1a1033' : '#b388ff';
+        ctx.beginPath();
+        ctx.moveTo(0, -14);
+        ctx.lineTo(8, 0);
+        ctx.lineTo(0, 14);
+        ctx.lineTo(-8, 0);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+      // pillars fading into the dark
+      const off = -cam.x * 0.35;
+      for (let i = 0; i < 8; i++) {
+        const px = (((i * 300 + off) % (W + 300)) + W + 300) % (W + 300) - 150;
+        const pg = ctx.createLinearGradient(0, gy - 420, 0, gy);
+        pg.addColorStop(0, 'rgba(26,16,51,0)');
+        pg.addColorStop(1, '#1a1033');
+        ctx.fillStyle = pg;
+        ctx.fillRect(px, gy - 420, 40, 420);
+        ctx.fillStyle = '#b388ff';
+        ctx.fillRect(px + 17, gy - 300 + Math.sin(t * 0.04 + i) * 8, 6, 6);
+      }
+    },
+  },
 ];

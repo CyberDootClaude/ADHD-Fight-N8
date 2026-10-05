@@ -30,7 +30,7 @@ const titleTo = async (p, item) => {
   const n = await p.ev((it) => Game.TITLE_ITEMS.indexOf(it), item);
   for (let i = 0; i < n; i++) await p.key('ArrowDown');
 };
-const titleRowY = (p, item) => p.ev((it) => 290 + Game.TITLE_ITEMS.indexOf(it) * 54 - 12, item);
+const titleRowY = (p, item) => p.ev((it) => Game.titleMenuY() + Game.TITLE_ITEMS.indexOf(it) * 54 - 12, item);
 const noErrors = (label, p) => check(`${label}: no page errors`, p.errs.length === 0, p.errs.slice(0, 2).join(' | '));
 
 // ---- every fighter, both styles, in the real page ----
@@ -242,6 +242,65 @@ async function arcade(b) {
   await ctx.close();
 }
 
+// ---- progression: FP, stats, unlockable costumes, stages and titles ----
+async function progression(b) {
+  const { ctx, p } = await open(b);
+  const fresh = await p.ev(() => ({ fp: Profile.get().fp, title: Profile.titleName(), stages: Profile.openStages().length, all: STAGES.length }));
+  check('Profile: starts with 0 FP, NEWCOMER, unlockable stages locked', fresh.fp === 0 && fresh.title === 'NEWCOMER' && fresh.stages === fresh.all - 2, JSON.stringify(fresh));
+  // win a match against the CPU
+  await p.ev(() => { Game.mode = 'cpu'; Game.lastPicks = [0, 1]; Game.lastCostumes = [0, 0]; Game.stageIdx = 0; Game.startMatch(); const m = Game.match; m.f[0].bestCombo = 11; m.f[0].bestComboDmg = 300; m.over = true; m.winner = m.f[0]; });
+  await p.waitForTimeout(300);
+  const won = await p.ev(() => ({ fp: Profile.get().fp, wins: Profile.get().wins, kaze: Profile.get().chars.kaze, reward: Game.lastReward, scene: Game.scene }));
+  check('Profile: a win earns FP and records stats', won.fp >= 80 && won.wins === 1 && won.kaze.w === 1 && won.kaze.combo === 11 && won.scene === 'results', JSON.stringify(won));
+  check('Profile: achievements unlock titles (FIRST BLOOD, COMBO FIEND)', won.reward.unlocked.includes('TITLE: FIRST BLOOD') && won.reward.unlocked.includes('TITLE: COMBO FIEND'), won.reward.unlocked.join(', '));
+  // profile screen from the title menu, buy a costume with the keyboard
+  await p.ev(() => { Game.go('title'); Profile.get().fp = 1000; });
+  await titleTo(p, 'PROFILE'); await p.key('Enter');
+  check('Profile: title menu opens the profile', await p.ev(() => Game.scene) === 'profile');
+  await p.key('ArrowRight');
+  const row = await p.ev(() => Game.unlockRows().findIndex((r) => r.key === 'costume:kaze:1'));
+  for (let i = 0; i < row; i++) await p.key('ArrowDown', 30);
+  await p.key('Enter');
+  const bought = await p.ev(() => ({ fp: Profile.get().fp, owned: Profile.hasCostume('kaze', 1), worn: Profile.costumeOf('kaze') }));
+  check('Profile: buying a costume spends FP and equips it', bought.fp === 700 && bought.owned && bought.worn === 1, JSON.stringify(bought));
+  // the costume shows up in a match, and can be cycled on the select screen
+  const dressed = await p.ev(() => {
+    Game.mode = 'cpu'; Game.startSelect(); Game.sel.cur = [0, 2];
+    const k0 = Game.selCostume(0);
+    Game.cycleCostume(0);
+    const k1 = Game.sel.costume[0];
+    Game.cycleCostume(0);
+    Game.lastPicks = [0, 2]; Game.lastCostumes = [Game.sel.costume[0], 0];
+    Game.lastCostumes = [1, 0];
+    Game.startMatch();
+    return { k0, k1, back: Game.sel.costume[0], look: Game.match.f[0].def.look.primary, base: ROSTER[0].look.primary };
+  });
+  check('Select: Dash cycles owned costumes', dressed.k0 === 1 && dressed.k1 === 0 && dressed.back === 1, JSON.stringify(dressed));
+  check('Match: the fighter wears the costume', dressed.look !== dressed.base, JSON.stringify(dressed));
+  const mirror = await p.ev(() => { Game.lastPicks = [4, 4]; Game.lastCostumes = [0, 0]; const d = Game.matchDefs(); return d[0].look.primary !== d[1].look.primary; });
+  check('Match: mirror matches tint player 2', mirror);
+  // buy a stage, then it shows up on stage select
+  await p.ev(() => { Profile.get().fp = 800; Game.openProfile(); Game.prof.tab = 1; Game.prof.cur = Game.unlockRows().findIndex((r) => r.key === 'stage:Desert Ruins'); });
+  await p.key('Enter');
+  const st = await p.ev(() => ({ open: Profile.openStages().map((i) => STAGES[i].name), fp: Profile.get().fp }));
+  check('Profile: buying Desert Ruins unlocks the stage', st.open.includes('Desert Ruins') && st.fp === 0, JSON.stringify(st));
+  const cycle = await p.ev(() => { Game.lastPicks = [0, 1]; Game.go('stage'); Game.stageIdx = 0; const seen = new Set(); for (let i = 0; i < 10; i++) { Game.updateStage({ right: true }); seen.add(STAGES[Game.stageIdx].name); } return [...seen]; });
+  check('Stage select: cycles unlocked stages only', cycle.includes('Desert Ruins') && !cycle.includes('Void Throne'), cycle.join(', '));
+  // beating arcade unlocks the Void Throne and VOID BREAKER
+  const arc = await p.ev(() => { Game.mode = 'arcade'; Game.lastPicks = [0, 1]; Game.startArcade(); Game.arc.i = 6; Game.startArcadeFight(); const boss = STAGES[Game.match.opts.stage].name; const m = Game.match; m.over = true; m.winner = m.f[0]; Game.update(); return { boss, scene: Game.scene, open: Profile.openStages().map((i) => STAGES[i].name), title: Profile.hasTitle('void'), fp: Game.arcadeReward && Game.arcadeReward.fp }; });
+  check('Arcade: the boss fight is on the Void Throne', arc.boss === 'Void Throne', arc.boss);
+  check('Arcade: a clear unlocks Void Throne, VOID BREAKER and bonus FP', arc.scene === 'arcadeEnd' && arc.open.includes('Void Throne') && arc.title && arc.fp >= 300, JSON.stringify(arc));
+  // set a title, then everything survives a reload
+  await p.ev(() => { Profile.get().title = 'combo'; Profile.save(); });
+  await p.reload(); await p.waitForFunction(() => typeof Game !== 'undefined' && Game.scene === 'title', null, { timeout: 10000 });
+  const kept = await p.ev(() => ({ fp: Profile.get().fp, title: Profile.titleName(), kaze: Profile.costumeOf('kaze'), wins: Profile.get().wins }));
+  check('Profile: saved across reloads', kept.fp > 0 && kept.title === 'COMBO FIEND' && kept.kaze === 1 && kept.wins >= 1, JSON.stringify(kept));
+  // draw both profile tabs without errors
+  await p.ev(() => { Game.openProfile(); Game.draw(); Game.prof.tab = 1; for (let i = 0; i < 40; i++) { Game.prof.cur = i; Game.draw(); } });
+  noErrors('Progression', p);
+  await ctx.close();
+}
+
 // ---- hit sparks, KO camera, victory poses, win quotes, music ----
 async function polish(b) {
   const { ctx, p } = await open(b);
@@ -399,7 +458,7 @@ async function mouse(b) {
 (async () => {
   const browser = await chromium.launch();
   try {
-    for (const t of [cpuMatches, practice, controls, mechanics, arcade, polish, touch, gamepad, mouse]) {
+    for (const t of [cpuMatches, practice, controls, mechanics, arcade, progression, polish, touch, gamepad, mouse]) {
       try { await t(browser); } catch (e) { check(`${t.name}: ran to the end`, false, String(e.stack || e).split('\n').slice(0, 3).join(' ')); }
     }
   } finally { await browser.close(); }
