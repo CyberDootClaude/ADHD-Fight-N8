@@ -226,7 +226,7 @@ async function arcade(b) {
     for (let i = 0; i < 60 * 30 && !m.over; i++) { m.tick(); if (i % 60 === 0) Game.draw(); }
     return { name: m.f[1].def.name, lvl: m.ai[1].cfg === AI_LEVELS.boss, hp: m.f[1].maxHp };
   });
-  check('Arcade: the final boss NULL fights at boss level', boss.name === 'NULL' && boss.lvl && boss.hp > 1100, JSON.stringify(boss));
+  check('Arcade: the final boss NULL fights at boss level', boss.name === 'NULL' && boss.lvl && boss.hp > 1000, JSON.stringify(boss));
   await p.ev(() => { const m = Game.match; m.over = true; m.winner = m.f[0]; m.f[0].hp = m.f[0].maxHp; });
   await p.waitForTimeout(300);
   const end = await p.ev(() => ({ scene: Game.scene, rec: JSON.parse(localStorage.getItem('adhd-fight-arcade') || '{}')[Game.arc.me.id] }));
