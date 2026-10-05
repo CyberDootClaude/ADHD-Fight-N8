@@ -25,7 +25,7 @@ npx http-server .   # then open http://localhost:8080
 - **Throws:** press forward or back + **Heavy** right next to the opponent. Throws can't be blocked, beat Flow and break armor. The defender can break one (a "tech") by pressing Heavy within 10 frames.
 - **Timer:** rounds last 99 seconds.
 
-Classic has its own balance pass: every character wins 43% to 55% of matches in `CLASSIC=1 node tools/balance.js`.
+Classic has its own balance pass: every character wins about 39% to 59% of matches in `CLASSIC=1 node tools/balance.js`.
 
 ## Practice mode
 Modeled on the training modes in Street Fighter 6 and Tekken 8. Nobody can be knocked out. Open the practice menu with **Esc**.
@@ -98,6 +98,18 @@ On phones and tablets you can tap menu items directly, and on-screen touch contr
 - **Victory poses and win quotes**: each fighter has a victory animation (Kaze bows, Granite flexes, Nova floats, Chrono checks the time…) and three win quotes, one of which appears on the results screen.
 - **Music**: the menus and each of the 5 stages have their own procedurally generated soundtrack, synthesized live with WebAudio (no audio files). It quiets down while paused. Turn it off in **Settings → Music**.
 
+## The CPU
+The CPU plays through a virtual controller, so it follows the same rules as you. On top of reacting and blocking, it:
+- **Punishes whiffs.** Miss an attack near it and it hits you during your recovery: a jab chain up close, a dash-in, a rushing special or a projectile from farther away. It also waits out your Flow stance instead of swinging into it.
+- **Plays its character's style.**
+  - Zoners (Nova, Echo, Nivia) keep their distance and fire projectiles.
+  - Rushdown fighters (Kaze, Ember, Umbra, Viper) stay close and mix up high and low on your block.
+  - Heavies (Granite, Ferrus, Magna) walk you down and throw a lot in Classic.
+  - Everyone else plays all-round.
+- **Learns your habits.** It keeps track of what you do. If you keep jumping in, it starts anti-airing on reaction. If you spam lows, it blocks low. If you keep zoning, it jumps or dashes through your projectiles. If you attack on wake-up, it blocks and punishes. If you keep throwing, it techs more.
+
+How much of this it does depends on the level: Easy doesn't adapt and rarely punishes, Normal does about half as much, and Hard does all of it.
+
 ## Balance
 Every character is tuned so no matchup is a blowout while keeping their style: heavies are tanky and hit hard, fast characters are mobile, zoners control space.
 
@@ -110,11 +122,11 @@ ONLY=nova,sahar node tools/balance.js 40   # only play matchups among these char
 CLASSIC=1 node tools/balance.js            # use the Classic rules
 ```
 
-Current results over 3,600 matches: every character wins between 44% and 58% of matches (it was 7% to 97% before balancing), and in about 60% of rounds the winner finishes below 30% health.
+Current results over 4,800 matches with the current CPU: every character wins between about 41% and 58% of matches (it was 7% to 97% before balancing), and in about 60% of rounds the winner finishes below 30% health.
 
 ## Tests
 Every pull request runs `.github/workflows/test.yml`, which fails the PR if something breaks:
-- `tests/headless.js` (plain Node, no browser): all 16 fighters play full matches in both styles, practice mode survives every dummy setting, and the balance sim fails if any fighter's win rate leaves 30%–70%.
+- `tests/headless.js` (plain Node, no browser): all 16 fighters play full matches in both styles, practice mode survives every dummy setting, the CPU punishes whiffs, learns to anti-air and plays its character's style, and the balance sim fails if any fighter's win rate leaves 30%–70%.
 - `tests/browser.js` (headless Chromium via Playwright): drives the real page with keyboard, mouse, touch and a fake gamepad, and checks menus, practice mode, key remapping, blocking heights, Flow, Classic throws and rules, and that no page errors occur.
 
 ```sh

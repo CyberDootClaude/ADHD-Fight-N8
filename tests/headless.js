@@ -1,7 +1,8 @@
 // Fast engine tests that run in plain Node:
 //  1. every fighter can play full matches in both game styles without errors
 //  2. practice mode survives every dummy setting and never knocks anyone out
-//  3. balance: no fighter's win rate drifts far from 50% (both styles)
+//  3. the CPU punishes whiffs, adapts to habits and plays its character's style
+//  4. balance: no fighter's win rate drifts far from 50% (both styles)
 const { execFileSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -54,7 +55,71 @@ const prac = run(`(function () {
 })()`);
 check('Practice: every dummy action and guard setting runs, nobody gets knocked out', prac.length === 0, prac.slice(0, 3).join('; '));
 
-// 3. balance
+// 3. smarter CPU: punishes whiffs, learns to anti-air jump-ins, plays its character's style
+const cpu = run(`(function () {
+  // seeded randomness so these checks give the same result every run
+  let seed = 12345;
+  Math.random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const mk = (a, b, ai0, ai1) => {
+    const m = new Match({ defs: [ROSTER[a], ROSTER[b]], stage: 0, inputs: [new PlayerInput(), new PlayerInput()], ai: [ai0, ai1], winsNeeded: 99 });
+    m.noKO = true; m.phase = 'fight'; m.inputLocked = false;
+    return m;
+  };
+  const frozen = (lvl) => { const ai = new AIController(lvl); ai.decide = function () { this.wait = 5; }; return ai; };
+  const out = {};
+  // whiffed heavies at 196px: the CPU (only reacting, never starting attacks) should punish
+  const m = mk(1, 3, null, frozen('hard'));
+  m.ai[0] = { t: 0, update() { const t = this.t++; return t % 60 === 5 || t % 60 === 6 ? { H: true } : {}; } };
+  for (let i = 0; i < 600; i++) { m.tick(); m.f[0].x = 1000; if (m.f[1].state !== 'attack' && m.f[1].state !== 'dash') m.f[1].x = 1200; m.f[0].hp = 1000; }
+  out.punish = m.cpuPunish || 0;
+  // repeated jump-ins: count stuffed jumps early vs late
+  const seq = [];
+  for (let rep = 0; rep < 8; rep++) {
+    const g = mk(rep, (rep + 7) % 16, null, frozen('hard'));
+    g.ai[0] = { update(me, opp) {
+      const fwd = opp.x > me.x ? 'right' : 'left';
+      const d = Math.abs(opp.x - me.x);
+      if (me.state === 'air') return { [fwd]: true, H: me.y < -60 && d < 170 };
+      if (me.state === 'idle' || me.state === 'walk') {
+        if (d < 200) { me.x = opp.x + (me.x < opp.x ? -250 : 250); return {}; }
+        return d > 270 ? { [fwd]: true } : { [fwd]: true, up: true };
+      }
+      return {};
+    } };
+    let wasAir = false, hit = false, n = 0;
+    for (let i = 0; i < 60 * 40 && n < 20; i++) {
+      g.tick();
+      const p = g.f[0];
+      const air = !p.onGround;
+      if (air && !wasAir) hit = false;
+      if (air && p.state === 'hit') hit = true;
+      if (!air && wasAir) seq[n] = (seq[n] || 0) + (hit ? 1 : 0), n++;
+      wasAir = air;
+      g.f[0].hp = g.f[1].hp = 1000;
+    }
+  }
+  const avg = (a) => a.reduce((x, y) => x + (y || 0), 0) / a.length / 8;
+  out.aaEarly = avg(seq.slice(0, 3));
+  out.aaLate = avg(seq.slice(10, 20));
+  // style: average distance to a passive opponent
+  const dist = (id) => {
+    const i = ROSTER.findIndex((d) => d.id === id);
+    let sum = 0, n = 0;
+    for (let rep = 0; rep < 3; rep++) {
+      const g = mk(i, (i + 4 + rep) % 16, new AIController('hard'), { update: () => ({}) });
+      for (let t = 0; t < 60 * 20; t++) { g.tick(); sum += Math.abs(g.f[0].x - g.f[1].x); n++; g.f[1].hp = 1000; }
+    }
+    return sum / n;
+  };
+  out.zoner = (dist('nova') + dist('echo') + dist('nivia')) / 3;
+  out.rushdown = (dist('ember') + dist('umbra') + dist('viper')) / 3;
+  return out;
+})()`);
+check('CPU: punishes whiffed attacks', cpu.punish >= 3, `${cpu.punish} punishes of 10 whiffs`);
+check('CPU: learns to anti-air repeated jump-ins', cpu.aaLate >= 0.4 && cpu.aaLate > cpu.aaEarly + 0.2, `stuffed ${Math.round(cpu.aaEarly * 100)}% of the first jumps, ${Math.round(cpu.aaLate * 100)}% later`);
+check('CPU: zoners keep their distance, rushdown stays close', cpu.zoner > cpu.rushdown * 1.25, `${Math.round(cpu.zoner)}px vs ${Math.round(cpu.rushdown)}px`);
+
+// 4. balance
 const PER = process.env.BALANCE_PER || '3';
 for (const classic of [false, true]) {
   const file = path.join(os.tmpdir(), `adhd-balance-${classic ? 'classic' : 'fast'}-${process.pid}.json`);
