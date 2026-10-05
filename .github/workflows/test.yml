@@ -1,0 +1,23 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Engine, practice mode and balance checks
+        run: npm run test:headless
+      - name: Browser checks (menus, keyboard, mouse, touch, gamepad)
+        run: npm run test:browser

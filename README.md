@@ -106,6 +106,16 @@ CLASSIC=1 node tools/balance.js            # use the Classic rules
 
 Current results over 3,600 matches: every character wins between 44% and 58% of matches (it was 7% to 97% before balancing), and in about 60% of rounds the winner finishes below 30% health.
 
+## Tests
+Every pull request runs `.github/workflows/test.yml`, which fails the PR if something breaks:
+- `tests/headless.js` (plain Node, no browser): all 16 fighters play full matches in both styles, practice mode survives every dummy setting, and the balance sim fails if any fighter's win rate leaves 30%–70%.
+- `tests/browser.js` (headless Chromium via Playwright): drives the real page with keyboard, mouse, touch and a fake gamepad, and checks menus, practice mode, key remapping, blocking heights, Flow, Classic throws and rules, and that no page errors occur.
+
+```sh
+npm install && npx playwright install chromium
+npm test
+```
+
 ## Roster
 
 | Fighter | Element | Style | Super |

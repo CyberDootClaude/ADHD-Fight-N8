@@ -5,6 +5,7 @@
 //   DETAIL=ferrus,kaze node tools/balance.js   # also show where each one's damage comes from
 //   ONLY=nova,sahar node tools/balance.js 40    # only play matchups among these characters
 //   CLASSIC=1 node tools/balance.js             # use the Classic (Street Fighter-style) rules
+//   JSON_OUT=results.json node tools/balance.js # also save the results (used by the tests)
 const vm = require('vm'), fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
 const PER = +(process.argv[2] || 6); // matches per ordered pair (each side)
@@ -96,3 +97,4 @@ const ms = [];
 for (let i = 0; i < out.ids.length; i++) for (let j = i + 1; j < out.ids.length; j++) { const a = out.M[i][j], b = out.M[j][i]; if (a + b) ms.push([out.ids[i] + ' vs ' + out.ids[j], a, b, Math.abs(a - b)]); }
 ms.sort((x, y) => y[3] - x[3]);
 console.log('most lopsided matchups:', ms.slice(0, 8).map(m => `${m[0]} ${m[1]}-${m[2]}`).join(' | '));
+if (process.env.JSON_OUT) fs.writeFileSync(process.env.JSON_OUT, JSON.stringify({ rows, totalRounds: out.totalRounds, closeRounds: out.closeRounds }));
