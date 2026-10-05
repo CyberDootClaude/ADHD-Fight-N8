@@ -55,6 +55,43 @@ const POSES = {
   flow: P(-6, [95, 70], [55, 95], [38, -30], [-35, -22]),
 };
 
+// Character-specific victory animations. t = frames since the pose started.
+function victoryPose(def, t) {
+  const sn = (sp, ph = 0) => Math.sin(t * sp + ph);
+  const kind = (def.win && def.win.pose) || 'fist';
+  switch (kind) {
+    case 'bow': {
+      const b = Math.max(0, Math.sin(t * 0.03));
+      return P(4 + 34 * b, [60, 100], [55, 105], [8, -3], [-8, -3], { head: 10 * b });
+    }
+    case 'pump':
+      return P(-4, [150 + 25 * sn(0.25), 25 - 25 * sn(0.25)], [20, 110], [22, -8], [-22, -6], { head: -10 });
+    case 'twirl':
+      return P(6 * sn(0.08), [105 + 20 * sn(0.08), 10], [-105 + 20 * sn(0.08), -10], [30 + 15 * sn(0.08), -40], [-12, -6], { head: 5 * sn(0.08) });
+    case 'flex':
+      return P(0, [95, 125 + 12 * sn(0.18)], [-95, -125 - 12 * sn(0.18)], [28, -6], [-28, -6], { head: -8, oy: 2 * sn(0.36) });
+    case 'point':
+      return P(-6, [95, -5 + 4 * sn(0.2)], [-25, -95], [22, -6], [-18, -4], { head: -5 });
+    case 'cross':
+      return P(-6 + 2 * sn(0.06), [55, 105], [50, 112], [16, -4], [-16, -4], { head: -10 });
+    case 'salute':
+      return P(-3, [150, 120], [10, 20], [6, -2], [-6, -2], { head: -6 });
+    case 'float':
+      return P(0, [70, 55], [-70, -55], [75, -135], [-20, -115], { oy: -34 + 9 * sn(0.07), head: 6 });
+    case 'conduct':
+      return P(-4, [130 + 30 * sn(0.22), 40 + 30 * sn(0.22, 1)], [-120 - 30 * sn(0.22, 1.6), -40], [20, -6], [-20, -6], { head: 10 * sn(0.11) });
+    case 'check':
+      return P(4, [85, 105], [70, 55], [16, -4], [-16, -4], { head: 22 });
+    case 'beckon':
+      return P(-8, [75, 70 + 40 * Math.max(0, sn(0.25))], [-30, -100], [24, -8], [-20, -6], { head: -6 });
+    default: {
+      const p = P(0, [170, 0], [20, 110], [15, -5], [-15, -5]);
+      p.fa[0] += sn(0.2) * 8;
+      return p;
+    }
+  }
+}
+
 function mk(o) {
   const m = Object.assign({ type: 'special', startup: 8, active: 3, recovery: 12, cooldown: 0, airOk: true }, o);
   m.total = m.startup + m.active + m.recovery;
@@ -191,6 +228,52 @@ const THROW_MOVE = mk({
     }
   },
 });
+
+// ---------------------------------------------------------------- hit sparks
+// Every element gets its own impact: flames rise, rocks fall, ice shatters,
+// lightning forks... big = heavy hits and supers (more, larger particles).
+const SPARK_STYLE = {
+  Air: { type: 'arc', alt: '#ffffff', grav: 0, n: 1 },
+  Fire: { type: 'flame', alt: '#ffd54f', grav: -0.35, n: 1.2 },
+  Water: { type: 'drop', alt: '#e1f5fe', grav: 0.45, n: 1.3 },
+  Earth: { type: 'rock', alt: '#795548', grav: 0.6, n: 1 },
+  Lightning: { type: 'bolt', alt: '#ffffff', grav: 0, n: 0.8 },
+  Ice: { type: 'shard', alt: '#e0f7fa', grav: 0.3, n: 1.2 },
+  Shadow: { type: 'slash', alt: '#311b92', grav: 0, n: 0.7 },
+  Nature: { type: 'leaf', alt: '#c5e1a5', grav: 0.12, n: 1 },
+  Metal: { type: 'spark', alt: '#ffab40', grav: 0.4, n: 1.6 },
+  Cosmic: { type: 'star', alt: '#80d8ff', grav: 0, n: 0.8 },
+  Sound: { type: 'note', alt: '#ffffff', grav: -0.05, n: 0.6 },
+  Sand: { type: 'dust', alt: '#d7b77a', grav: 0.15, n: 1.2 },
+  Magma: { type: 'rock', alt: '#ff3d00', grav: 0.5, n: 1.1 },
+  Time: { type: 'ring', alt: '#ffffff', grav: 0, n: 0.4 },
+  Poison: { type: 'drop', alt: '#76ff03', grav: 0.3, n: 1.1 },
+  Light: { type: 'star', alt: '#ffffff', grav: 0, n: 0.9 },
+};
+
+function hitSpark(g, def, cx, cy, dir, big) {
+  const st = SPARK_STYLE[def.element] || { type: 'spark', alt: '#ffffff', grav: 0, n: 1 };
+  const col = def.color;
+  const n = Math.round((big ? 14 : 8) * st.n);
+  for (let i = 0; i < n; i++) {
+    const c = i % 2 ? st.alt : col;
+    const sp = U.rand(2, big ? 12 : 9);
+    const a = U.rand(-1.1, 1.1);
+    const p = { x: cx + U.rand(-8, 8), y: cy + U.rand(-15, 15), vx: dir * Math.cos(a) * sp, vy: Math.sin(a) * sp - 1, life: U.randi(12, 22), size: U.rand(3, 6) * (big ? 1.3 : 1), color: c, type: st.type, grav: st.grav, rot: U.rand(0, 6.3), spin: U.rand(-0.3, 0.3) };
+    if (st.type === 'ring') Object.assign(p, { vx: 0, vy: 0, size: 20 + i * 18, life: 14 + i * 3 });
+    if (st.type === 'slash') Object.assign(p, { vx: dir * U.rand(1, 3), vy: U.rand(-1, 1), size: U.rand(40, 70) * (big ? 1.4 : 1), rot: U.rand(-0.9, 0.9), life: 12 });
+    if (st.type === 'bolt') Object.assign(p, { size: U.rand(30, 60) * (big ? 1.4 : 1), life: 9, drag: 0.7 });
+    if (st.type === 'note') Object.assign(p, { vy: U.rand(-3, -1), size: U.rand(18, 28), life: 30, drag: 0.96 });
+    if (st.type === 'dust') Object.assign(p, { size: U.rand(6, 12), drag: 0.9 });
+    if (st.type === 'arc') Object.assign(p, { size: U.rand(18, 34), life: 14, drag: 0.88 });
+    g.particle(p);
+  }
+  // a little extra for the elements that read best with a second layer
+  if (def.element === 'Fire' || def.element === 'Magma') for (let i = 0; i < (big ? 6 : 3); i++) g.particle({ x: cx, y: cy, vx: U.rand(-2, 2), vy: U.rand(-4, -1), life: 24, size: U.rand(6, 11), color: '#ff6d00', type: 'flame', grav: -0.2 });
+  if (def.element === 'Lightning' && big) g.flash = Math.max(g.flash || 0, 3);
+  g.particle({ x: cx, y: cy, vx: 0, vy: 0, life: 10, size: big ? 60 : 36, color: '#ffffff', type: 'ring' });
+  if (big) g.particle({ x: cx, y: cy, vx: 0, vy: 0, life: 8, size: big ? 70 : 40, color: col, type: 'flare' });
+}
 
 // ---------------------------------------------------------------- helpers
 const HIT = (o) => Object.assign({ dmg: 50, stun: 20, kb: [6, -2], hitstop: 7 }, o);

@@ -13,7 +13,7 @@ npx http-server .   # then open http://localhost:8080
 - **2 Players** — local versus on one keyboard, or with gamepads
 - **Practice** — beat up a bot with full control over it (see below)
 - **CPU vs CPU** — watch the AI fight
-- **Settings** — **game style** (Fast or Classic, below), game speed (**Fast** / **Turbo** / **Hyper**), CPU level, rounds to win, sound, and **Controls** for remapping keys
+- **Settings** — **game style** (Fast or Classic, below), game speed (**Fast** / **Turbo** / **Hyper**), CPU level, rounds to win, sound, music, and **Controls** for remapping keys
 
 ## Game styles
 **Fast** (default) is the original: air-dashes, double jumps, running, and free-flowing combos.
@@ -92,6 +92,12 @@ On phones and tablets you can tap menu items directly, and on-screen touch contr
 - **No touch-of-death**: each extra hit in a combo does less damage, and once a combo passes about a third of the opponent's health, the rest does half damage.
 - **Armor** absorbs one hit per move. The losing player of each round gets bonus meter for the next.
 
+### Presentation
+- **Elemental hit sparks**: every element has its own impact effect. Fire flares up, Earth and Magma throw rocks, Ice shatters into shards, Lightning forks, Nature scatters leaves, Sound pops out music notes, Time ripples, Metal throws sparks, and so on.
+- **K.O. camera**: a knockout flashes the screen, slows time and zooms in on the hit, then the camera moves to the winner.
+- **Victory poses and win quotes**: each fighter has a victory animation (Kaze bows, Granite flexes, Nova floats, Chrono checks the time…) and three win quotes, one of which appears on the results screen.
+- **Music**: the menus and each of the 5 stages have their own procedurally generated soundtrack, synthesized live with WebAudio (no audio files). It quiets down while paused. Turn it off in **Settings → Music**.
+
 ## Balance
 Every character is tuned so no matchup is a blowout while keeping their style: heavies are tanky and hit hard, fast characters are mobile, zoners control space.
 
@@ -143,6 +149,7 @@ npm test
 - `js/fighter.js`: the fighter state machine, physics and hit handling
 - `js/match.js`: rounds, collisions, camera and HUD
 - `js/render.js`: procedural character art, effects and stages
+- `js/audio.js`: synthesized sound effects and the procedural music engine
 - `js/ai.js`: the CPU opponent, which plays through a virtual controller
 - `js/game.js`: menus, scenes and the main loop
 

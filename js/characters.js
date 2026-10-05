@@ -228,3 +228,27 @@ const ROSTER = [
     super: SUPER('pillar', { name: 'Judgment', vis: 'lightpillar', count: 5, spacing: 150, stagger: 5, delay: 10, w: 110, h: 900, hit: { dmg: 66, stun: 30, kb: [1, -14] } }),
   }),
 ];
+
+// Victory pose (see victoryPose in moves.js) and win quotes for each fighter.
+const WIN_FLAIR = {
+  kaze: ['bow', ['Too slow! The wind waits for no one.', 'I barely touched the ground.', 'Breathe. Then try again.']],
+  ember: ['pump', ['Hope you brought a fire extinguisher.', 'That was just my warm-up!', 'Burn bright or burn out!']],
+  marina: ['twirl', ['Go with the flow next time.', 'The tide always comes back.', "You're all washed up."]],
+  granite: ['flex', ["Mountains don't move.", 'Hit harder. I dare you.', 'You broke on the rock.']],
+  volta: ['point', ['Shocking, right?', 'Blink and you missed it. You blinked.', 'Lightning never strikes twice. I do.']],
+  nivia: ['cross', ["Chill. It's over.", 'Your fire never stood a chance.', 'Stay frozen there for a while.']],
+  umbra: ['cross', ['You never saw me.', 'Shadows always win in the end.', 'Next time, watch your back.']],
+  thorn: ['fist', ['Nature finds a way.', 'Rooted. Rested. Ready.', 'You got tangled up.']],
+  ferrus: ['salute', ['Iron will. Iron fist.', 'Forged in battle. Sharpened by you.', 'Your strikes just polished my armor.']],
+  nova: ['float', ["You're seeing stars now.", 'The universe is on my side.', 'Shine on, little comet.']],
+  echo: ['conduct', ['That was music to my ears!', "Encore? I'll pass.", 'Drop the beat, not your guard.']],
+  sahar: ['point', ['Sand slips through your fingers. So did this fight.', 'The desert is patient. I am not.', 'Dust yourself off.']],
+  magna: ['flex', ["SMASH! ...Oh, it's over.", 'Too hot to handle!', 'The ground shakes for me.']],
+  chrono: ['check', ['Right on schedule.', 'I saw this coming a minute ago.', 'Your time is up.']],
+  viper: ['beckon', ["It'll sting for days.", 'One bite was all it took.', 'Ssso predictable.']],
+  lumi: ['float', ['The light reveals every weakness.', 'Be at peace.', 'Dawn always follows the night.']],
+};
+for (const d of ROSTER) {
+  const [pose, quotes] = WIN_FLAIR[d.id] || ['fist', ['Victory!']];
+  d.win = { pose, quotes };
+}
